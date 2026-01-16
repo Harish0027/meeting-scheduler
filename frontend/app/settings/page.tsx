@@ -59,7 +59,9 @@ export default function SettingsPage() {
       .find((row) => row.startsWith("user="));
     if (userCookie) {
       try {
-        const userData = JSON.parse(decodeURIComponent(userCookie.split("=")[1]));
+        const userData = JSON.parse(
+          decodeURIComponent(userCookie.split("=")[1])
+        );
         setUser(userData);
       } catch (e) {
         console.error("Failed to parse user cookie", e);
@@ -108,7 +110,9 @@ export default function SettingsPage() {
               {activeSection === "profile" && (
                 <div className="space-y-6">
                   <div>
-                    <h2 className="text-lg font-medium text-gray-900 mb-1">Profile</h2>
+                    <h2 className="text-lg font-medium text-gray-900 mb-1">
+                      Profile
+                    </h2>
                     <p className="text-sm text-gray-500">
                       This information will be displayed publicly.
                     </p>
@@ -166,7 +170,9 @@ export default function SettingsPage() {
               {activeSection === "general" && (
                 <div className="space-y-6">
                   <div>
-                    <h2 className="text-lg font-medium text-gray-900 mb-1">General</h2>
+                    <h2 className="text-lg font-medium text-gray-900 mb-1">
+                      General
+                    </h2>
                     <p className="text-sm text-gray-500">
                       Configure your language and regional preferences.
                     </p>
@@ -212,7 +218,10 @@ export default function SettingsPage() {
               {activeSection !== "profile" && activeSection !== "general" && (
                 <div className="text-center py-12">
                   <p className="text-sm text-gray-500">
-                    {settingsSections.find((s) => s.id === activeSection)?.description}
+                    {
+                      settingsSections.find((s) => s.id === activeSection)
+                        ?.description
+                    }
                   </p>
                   <p className="text-xs text-gray-400 mt-2">Coming soon</p>
                 </div>

@@ -64,7 +64,9 @@ export function AppShell({ children }: AppShellProps) {
       .find((row) => row.startsWith("user="));
     if (userCookie) {
       try {
-        const userData = JSON.parse(decodeURIComponent(userCookie.split("=")[1]));
+        const userData = JSON.parse(
+          decodeURIComponent(userCookie.split("=")[1])
+        );
         setUser(userData);
       } catch (e) {
         console.error("Failed to parse user cookie", e);
@@ -75,7 +77,10 @@ export function AppShell({ children }: AppShellProps) {
   // Close user menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+      if (
+        userMenuRef.current &&
+        !userMenuRef.current.contains(event.target as Node)
+      ) {
         setUserMenuOpen(false);
       }
     };
@@ -92,7 +97,8 @@ export function AppShell({ children }: AppShellProps) {
   };
 
   const handleLogout = () => {
-    document.cookie = "authToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    document.cookie =
+      "authToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     document.cookie = "user=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     router.push("/login");
   };
@@ -102,7 +108,9 @@ export function AppShell({ children }: AppShellProps) {
       return pathname === "/dashboard";
     }
     if (href === "/event-types") {
-      return pathname === "/event-types" || pathname.startsWith("/event-types/");
+      return (
+        pathname === "/event-types" || pathname.startsWith("/event-types/")
+      );
     }
     return pathname === href || pathname.startsWith(href + "/");
   };
@@ -116,7 +124,12 @@ export function AppShell({ children }: AppShellProps) {
     { label: "Help", icon: HelpCircle, href: "#" },
     { label: "Download desktop app", icon: Download, href: "#" },
     { divider: true },
-    { label: "Sign out", icon: LogOut, action: "logout", className: "text-red-600" },
+    {
+      label: "Sign out",
+      icon: LogOut,
+      action: "logout",
+      className: "text-red-600",
+    },
   ];
 
   return (
@@ -244,7 +257,7 @@ export function AppShell({ children }: AppShellProps) {
 
           {/* Mobile Footer */}
           <div className="px-4 py-3 text-xs text-gray-400">
-             2026 Cal.com, Inc. v.6.1.0-h-8d1ad74
+            2026 Cal.com, Inc. v.6.1.0-h-8d1ad74
           </div>
         </div>
       </div>
@@ -268,7 +281,11 @@ export function AppShell({ children }: AppShellProps) {
               <span className="font-medium text-gray-900 text-sm">
                 {user?.username || "Loading..."}
               </span>
-              <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${userMenuOpen ? "rotate-180" : ""}`} />
+              <ChevronDown
+                className={`w-4 h-4 text-gray-400 transition-transform ${
+                  userMenuOpen ? "rotate-180" : ""
+                }`}
+              />
             </button>
             <button className="p-1.5 hover:bg-gray-200 rounded-md">
               <Search className="w-4 h-4 text-gray-500" />
@@ -280,7 +297,9 @@ export function AppShell({ children }: AppShellProps) {
             <div className="absolute top-full left-3 right-3 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
               {userMenuItems.map((item, idx) => {
                 if (item.divider) {
-                  return <div key={idx} className="my-1 border-t border-gray-100" />;
+                  return (
+                    <div key={idx} className="my-1 border-t border-gray-100" />
+                  );
                 }
                 const Icon = item.icon!;
                 if (item.action === "logout") {
@@ -291,7 +310,9 @@ export function AppShell({ children }: AppShellProps) {
                         setUserMenuOpen(false);
                         handleLogout();
                       }}
-                      className={`flex items-center gap-3 px-3 py-2 text-sm w-full hover:bg-gray-50 ${item.className || "text-gray-700"}`}
+                      className={`flex items-center gap-3 px-3 py-2 text-sm w-full hover:bg-gray-50 ${
+                        item.className || "text-gray-700"
+                      }`}
                     >
                       <Icon className="w-4 h-4" strokeWidth={1.5} />
                       {item.label}
@@ -303,7 +324,9 @@ export function AppShell({ children }: AppShellProps) {
                     key={idx}
                     href={item.href || "#"}
                     onClick={() => setUserMenuOpen(false)}
-                    className={`flex items-center gap-3 px-3 py-2 text-sm hover:bg-gray-50 ${item.className || "text-gray-700"}`}
+                    className={`flex items-center gap-3 px-3 py-2 text-sm hover:bg-gray-50 ${
+                      item.className || "text-gray-700"
+                    }`}
                   >
                     <Icon className="w-4 h-4" strokeWidth={1.5} />
                     {item.label}
@@ -367,7 +390,7 @@ export function AppShell({ children }: AppShellProps) {
 
         {/* Footer */}
         <div className="px-4 py-3 text-xs text-gray-400">
-           2026 Cal.com, Inc. v.6.1.0-h-8d1ad74
+          2026 Cal.com, Inc. v.6.1.0-h-8d1ad74
         </div>
       </aside>
 

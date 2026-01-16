@@ -39,13 +39,15 @@ export default function LoginPage() {
       document.cookie = `authToken=${user.id}; path=/; max-age=${
         30 * 24 * 60 * 60
       }`;
-      
+
       // Store user data in cookie for frontend use
-      document.cookie = `user=${encodeURIComponent(JSON.stringify({
-        id: user.id,
-        username: user.username,
-        email: user.email,
-      }))}; path=/; max-age=${30 * 24 * 60 * 60}`;
+      document.cookie = `user=${encodeURIComponent(
+        JSON.stringify({
+          id: user.id,
+          username: user.username,
+          email: user.email,
+        })
+      )}; path=/; max-age=${30 * 24 * 60 * 60}`;
 
       toast.success("Logged in successfully!");
       router.push("/dashboard");
