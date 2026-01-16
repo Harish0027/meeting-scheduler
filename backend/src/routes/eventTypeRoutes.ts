@@ -12,8 +12,14 @@ const router = Router();
 
 // Admin routes
 router.post("/", createEventType);
+router.get("/", getEventTypes);
 router.get("/all", getEventTypes);
-router.get("/:id", getEventType);
+
+// Public routes (must be before /:id to avoid conflicts)
+router.get("/:username/:slug", getEventTypeBySlug);
+
+// Single event type by ID
+router.get("/id/:id", getEventType);
 router.put("/:id", updateEventType);
 router.delete("/:id", deleteEventType);
 
