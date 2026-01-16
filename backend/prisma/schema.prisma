@@ -6,8 +6,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  directUrl = env("DATABASE_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -34,6 +34,7 @@ model EventType {
   description String?
   duration    Int        // in minutes
   slug        String     // unique per user
+  isActive    Boolean    @default(true)
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
@@ -69,6 +70,7 @@ model Booking {
   bookerPhone   String?
   startTime     DateTime
   endTime       DateTime
+  timeZone      String?    // The timezone of the booker at time of booking
   notes         String?
   status        String   @default("confirmed") // confirmed, cancelled
   createdAt     DateTime @default(now())
