@@ -52,9 +52,17 @@ export const getEventTypeBySlug = asyncHandler(
       throw new AppError("Event type not found", 404);
     }
 
+    // Include user data in response
     res.json({
       success: true,
-      data: eventType,
+      data: {
+        ...eventType,
+        user: {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+        },
+      },
     });
   }
 );
