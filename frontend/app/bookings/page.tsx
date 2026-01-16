@@ -121,11 +121,11 @@ export default function BookingsPage() {
 
   const groupedBookings = useMemo(() => {
     const groups: { [key: string]: { date: Date; bookings: Booking[] } } = {};
-    
+
     filteredBookings.forEach((booking) => {
       const date = new Date(booking.startTime);
       const dateKey = date.toISOString().split("T")[0];
-      
+
       if (!groups[dateKey]) {
         groups[dateKey] = { date, bookings: [] };
       }
@@ -142,7 +142,7 @@ export default function BookingsPage() {
     const end = start + rowsPerPage;
     let count = 0;
     const result: typeof groupedBookings = [];
-    
+
     for (const group of groupedBookings) {
       if (count >= end) break;
       if (count + group.bookings.length > start) {
@@ -150,7 +150,7 @@ export default function BookingsPage() {
       }
       count += group.bookings.length;
     }
-    
+
     return result;
   }, [groupedBookings, currentPage, rowsPerPage]);
 
@@ -166,42 +166,42 @@ export default function BookingsPage() {
     if (date.getTime() === today.getTime()) {
       return "TODAY";
     }
-    
+
     // Find if this is the first group AFTER today
     // Since paginatedGroups is sorted by date
     // We can just check if the previous group was today or in the past
-    // But paginatedGroups only contains visible groups. 
+    // But paginatedGroups only contains visible groups.
     // Simplified logic as per standard Cal.com UI:
     // If it's the first group in the list and not today -> NEXT (if it is upcoming)
     // Or closer match to screenshot:
     // Iterate through all groups and label the first non-today group as NEXT?
-    
+
     // Let's stick to simple logic that usually works well:
     // If we are in "Upcoming" tab:
     // The groups are sorted ascending.
     // 1st group -> TODAY (if match)
     // 2nd group (or 1st if today empty) -> NEXT
-    
+
     if (activeTab === "upcoming") {
-        const isToday = paginatedGroups.some(g => {
-            const gDate = new Date(g.date);
-            gDate.setHours(0,0,0,0);
-            return gDate.getTime() === today.getTime();
+      const isToday = paginatedGroups.some((g) => {
+        const gDate = new Date(g.date);
+        gDate.setHours(0, 0, 0, 0);
+        return gDate.getTime() === today.getTime();
+      });
+
+      // If this group is NOT today
+      if (date.getTime() !== today.getTime()) {
+        // If there is a today group, and this is the one right after it
+        const todayIndex = paginatedGroups.findIndex((g) => {
+          const gDate = new Date(g.date);
+          gDate.setHours(0, 0, 0, 0);
+          return gDate.getTime() === today.getTime();
         });
 
-        // If this group is NOT today
-        if (date.getTime() !== today.getTime()) {
-             // If there is a today group, and this is the one right after it
-             const todayIndex = paginatedGroups.findIndex(g => {
-                 const gDate = new Date(g.date);
-                 gDate.setHours(0,0,0,0);
-                 return gDate.getTime() === today.getTime();
-             });
-             
-             if (index === todayIndex + 1 || (todayIndex === -1 && index === 0)) {
-                 return "NEXT";
-             }
+        if (index === todayIndex + 1 || (todayIndex === -1 && index === 0)) {
+          return "NEXT";
         }
+      }
     }
 
     return formatDate(groupDate).toUpperCase();
@@ -228,11 +228,13 @@ export default function BookingsPage() {
   };
 
   const formatTime = (dateStr: string) => {
-    return new Date(dateStr).toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    }).toLowerCase(); // match screenshot "4:30pm"
+    return new Date(dateStr)
+      .toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      })
+      .toLowerCase(); // match screenshot "4:30pm"
   };
 
   const formatDateShort = (dateStr: string) => {
@@ -311,7 +313,7 @@ export default function BookingsPage() {
         ) : (
           <>
             {/* Bookings Table */}
-            <div className="border border-neutral-200 rounded-lg overflow-hidden">
+            <div className="border border-neutral-200 rounded-lg">
               {paginatedGroups.map((group, groupIndex) => (
                 <div key={groupIndex}>
                   {/* Date Header */}
@@ -355,10 +357,18 @@ export default function BookingsPage() {
 
                       {/* Event Details */}
                       <div className="flex-1 min-w-0">
-                        <a href="#" className="text-sm font-medium text-neutral-900 hover:underline truncate block">
+                        <a
+                          href="#"
+                          className="text-sm font-medium text-neutral-900 hover:underline truncate block"
+                        >
                           {booking.eventType.title} between{" "}
-                          <span className="text-neutral-900">{booking.bookerName}</span> and{" "}
-                          <span className="text-neutral-900">{booking.bookerName}</span>
+                          <span className="text-neutral-900">
+                            {booking.bookerName}
+                          </span>{" "}
+                          and{" "}
+                          <span className="text-neutral-900">
+                            {booking.bookerName}
+                          </span>
                         </a>
                         {booking.notes && (
                           <p className="text-xs text-neutral-500 truncate mt-0.5 italic">
@@ -374,7 +384,9 @@ export default function BookingsPage() {
                       <div className="flex items-center gap-2 flex-shrink-0">
                         <div className="flex -space-x-2">
                           <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 border-2 border-white flex items-center justify-center">
-                            <span className="text-xs text-white font-medium">Y</span>
+                            <span className="text-xs text-white font-medium">
+                              Y
+                            </span>
                           </div>
                           <div className="w-6 h-6 rounded-full bg-gradient-to-br from-green-500 to-teal-500 border-2 border-white flex items-center justify-center">
                             <span className="text-xs text-white font-medium">
@@ -382,66 +394,77 @@ export default function BookingsPage() {
                             </span>
                           </div>
                         </div>
-                        <span className="text-xs text-neutral-500 hidden sm:inline">+2</span>
+                        <span className="text-xs text-neutral-500 hidden sm:inline">
+                          +2
+                        </span>
                       </div>
 
                       {/* More Actions */}
-                      <div className="relative ml-auto" ref={activeMenu === booking.id ? menuRef : null}>
-                        <button 
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                setActiveMenu(activeMenu === booking.id ? null : booking.id);
-                            }}
-                            className="p-2 hover:bg-neutral-100 rounded-md transition-colors text-neutral-500"
+                      <div
+                        className="relative ml-auto"
+                        ref={activeMenu === booking.id ? menuRef : null}
+                      >
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveMenu(
+                              activeMenu === booking.id ? null : booking.id
+                            );
+                          }}
+                          className="p-2 hover:bg-neutral-100 rounded-md transition-colors text-neutral-500"
                         >
                           <MoreHorizontal className="w-4 h-4" />
                         </button>
 
-                         {activeMenu === booking.id && (
-                          <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-lg shadow-lg border border-neutral-200 py-1 z-50 animate-in fade-in zoom-in-95 duration-100">
-                             <div className="px-3 py-2 text-xs font-semibold text-gray-500">Edit event</div>
-                             <button className="flex items-center gap-2 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 w-full text-left">
-                                <Clock className="w-4 h-4 text-neutral-500" />
-                                Reschedule booking
-                             </button>
-                             <button className="flex items-center gap-2 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 w-full text-left">
-                                <Pencil className="w-4 h-4 text-neutral-500" />
-                                Edit location
-                             </button>
-                             <button className="flex items-center gap-2 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 w-full text-left">
-                                <UserPlus className="w-4 h-4 text-neutral-500" />
-                                Add guests
-                             </button>
+                        {activeMenu === booking.id && (
+                          <div
+                            onClick={(e) => e.stopPropagation()}
+                            className="absolute right-0 top-full mt-1 w-56 bg-white rounded-lg shadow-lg border border-neutral-200 py-1 z-50 animate-in fade-in zoom-in-95 duration-100"
+                          >
+                            <div className="px-3 py-2 text-xs font-semibold text-gray-500">
+                              Edit event
+                            </div>
+                            <button
+                              onClick={(e) => e.stopPropagation()}
+                              className="flex items-center gap-2 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 w-full text-left"
+                            >
+                              <Clock className="w-4 h-4 text-neutral-500" />
+                              Reschedule booking
+                            </button>
+                            <button
+                              onClick={(e) => e.stopPropagation()}
+                              className="flex items-center gap-2 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 w-full text-left"
+                            >
+                              <Pencil className="w-4 h-4 text-neutral-500" />
+                              Edit location
+                            </button>
+                            <button
+                              onClick={(e) => e.stopPropagation()}
+                              className="flex items-center gap-2 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 w-full text-left"
+                            >
+                              <UserPlus className="w-4 h-4 text-neutral-500" />
+                              Add guests
+                            </button>
 
-                             <div className="my-1 border-t border-neutral-100" />
-                             
-                             <div className="px-3 py-2 text-xs font-semibold text-gray-500">After event</div>
-                             <button className="flex items-center gap-2 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 w-full text-left">
-                                <Video className="w-4 h-4 text-neutral-500" />
-                                View recordings
-                             </button>
-                             <button className="flex items-center gap-2 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 w-full text-left">
-                                <Info className="w-4 h-4 text-neutral-500" />
-                                View session details
-                             </button>
-                             <button className="flex items-center gap-2 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 w-full text-left">
-                                <Ban className="w-4 h-4 text-neutral-500" />
-                                Mark as no-show
-                             </button>
+                            <div className="my-1 border-t border-neutral-100" />
 
-                             <div className="my-1 border-t border-neutral-100" />
-
-                             <button className="flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left">
-                                <Flag className="w-4 h-4" />
-                                Report booking
-                             </button>
-                             <button 
-                                onClick={() => handleCancel(booking)}
-                                className="flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left"
-                             >
-                                <XCircle className="w-4 h-4" />
-                                Cancel event
-                             </button>
+                            <button
+                              onClick={(e) => e.stopPropagation()}
+                              className="flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left"
+                            >
+                              <Flag className="w-4 h-4" />
+                              Report booking
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCancel(booking);
+                              }}
+                              className="flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left"
+                            >
+                              <XCircle className="w-4 h-4" />
+                              Cancel event
+                            </button>
                           </div>
                         )}
                       </div>
@@ -474,8 +497,8 @@ export default function BookingsPage() {
 
               <div className="flex items-center gap-4 order-1 sm:order-2">
                 <span className="text-neutral-600">
-                  {Math.min((currentPage - 1) * rowsPerPage + 1, totalBookings)}-
-                  {Math.min(currentPage * rowsPerPage, totalBookings)} of{" "}
+                  {Math.min((currentPage - 1) * rowsPerPage + 1, totalBookings)}
+                  -{Math.min(currentPage * rowsPerPage, totalBookings)} of{" "}
                   {totalBookings}
                 </span>
                 <div className="flex items-center gap-1">

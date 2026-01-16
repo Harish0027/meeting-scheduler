@@ -57,7 +57,9 @@ export default function BookingPage() {
   const [step, setStep] = useState<BookingStep>("calendar");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [timeFormat, setTimeFormat] = useState<"12h" | "24h">("12h");
-  const [timezone, setTimezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone);
+  const [timezone, setTimezone] = useState(
+    Intl.DateTimeFormat().resolvedOptions().timeZone
+  );
   const [showTimezoneSelect, setShowTimezoneSelect] = useState(false);
   const [bookingData, setBookingData] = useState<any>(null);
   const [overlayCalendar, setOverlayCalendar] = useState(
@@ -241,9 +243,9 @@ export default function BookingPage() {
       console.error("Invalid timezone:", timezone);
       // Fallback to local time if timezone is invalid
       return date.toLocaleTimeString("en-US", {
-         hour: timeFormat === "24h" ? "2-digit" : "numeric",
-         minute: "2-digit",
-         hour12: timeFormat !== "24h",
+        hour: timeFormat === "24h" ? "2-digit" : "numeric",
+        minute: "2-digit",
+        hour12: timeFormat !== "24h",
       });
     }
   };
@@ -251,7 +253,6 @@ export default function BookingPage() {
   const formatTimeShort = (dateStr: string) => {
     return formatTime(dateStr);
   };
-
 
   // Filter out past time slots
   const availableTimeSlots = useMemo(() => {
@@ -567,38 +568,40 @@ export default function BookingPage() {
 
               <div className="flex items-center gap-2 text-gray-700 relative">
                 <Globe className="w-4 h-4 text-gray-400" />
-                <button 
+                <button
                   onClick={() => setShowTimezoneSelect(!showTimezoneSelect)}
                   className="text-sm flex items-center gap-1 hover:text-gray-900"
                 >
                   {timezone.replace(/_/g, " ")}
                   <ChevronDown className="w-3 h-3" />
                 </button>
-                
+
                 {showTimezoneSelect && (
-                   <div className="absolute top-8 left-0 z-50 w-64 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto">
-                     {[
-                       "Asia/Dushanbe",
-                       "Asia/Kolkata",
-                       "Asia/Tashkent",
-                       "Asia/Samarkand",
-                       "UTC",
-                       "America/New_York",
-                       "Europe/London"
-                     ].map((tz) => (
-                       <button
-                         key={tz}
-                         className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center justify-between"
-                         onClick={() => {
-                           setTimezone(tz);
-                           setShowTimezoneSelect(false);
-                         }}
-                       >
-                         {tz.replace(/_/g, " ")}
-                         {timezone === tz && <Check className="w-3 h-3 text-gray-900" />}
-                       </button>
-                     ))}
-                   </div>
+                  <div className="absolute top-8 left-0 z-50 w-64 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                    {[
+                      "Asia/Dushanbe",
+                      "Asia/Kolkata",
+                      "Asia/Tashkent",
+                      "Asia/Samarkand",
+                      "UTC",
+                      "America/New_York",
+                      "Europe/London",
+                    ].map((tz) => (
+                      <button
+                        key={tz}
+                        className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center justify-between"
+                        onClick={() => {
+                          setTimezone(tz);
+                          setShowTimezoneSelect(false);
+                        }}
+                      >
+                        {tz.replace(/_/g, " ")}
+                        {timezone === tz && (
+                          <Check className="w-3 h-3 text-gray-900" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
                 )}
               </div>
             </div>
