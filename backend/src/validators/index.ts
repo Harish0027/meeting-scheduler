@@ -14,8 +14,8 @@ export const updateUserSchema = z.object({
 // Event Type validation
 export const createEventTypeSchema = z.object({
   title: z.string().min(1).max(255),
-  description: z.string().max(1000).optional(),
-  duration: z.number().int().min(15).max(480), // 15 min to 8 hours
+  description: z.string().max(1000).optional().nullable(),
+  duration: z.number().int().min(5).max(480), // 5 min to 8 hours
   slug: z
     .string()
     .min(1)
@@ -24,9 +24,24 @@ export const createEventTypeSchema = z.object({
       /^[a-z0-9-]+$/,
       "Slug must contain only lowercase letters, numbers, and hyphens"
     ),
+  isActive: z.boolean().optional(),
 });
 
-export const updateEventTypeSchema = createEventTypeSchema.partial();
+export const updateEventTypeSchema = z.object({
+  title: z.string().min(1).max(255).optional(),
+  description: z.string().max(1000).optional().nullable(),
+  duration: z.number().int().min(5).max(480).optional(),
+  slug: z
+    .string()
+    .min(1)
+    .max(100)
+    .regex(
+      /^[a-z0-9-]+$/,
+      "Slug must contain only lowercase letters, numbers, and hyphens"
+    )
+    .optional(),
+  isActive: z.boolean().optional(),
+});
 
 // Availability validation
 export const setAvailabilitySchema = z.object({
@@ -45,6 +60,7 @@ export const createBookingSchema = z.object({
   bookerPhone: z.string().optional(),
   startTime: z.string().datetime(),
   endTime: z.string().datetime(),
+  timeZone: z.string().optional(),
   notes: z.string().max(1000).optional(),
 });
 

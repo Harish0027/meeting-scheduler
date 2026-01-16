@@ -52,6 +52,7 @@ export class BookingService {
         bookerPhone: data.bookerPhone,
         startTime,
         endTime,
+        timeZone: data.timeZone,
         notes: data.notes,
       },
       include: {
