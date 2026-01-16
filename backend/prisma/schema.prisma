@@ -1,0 +1,81 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  directUrl = env("DATABASE_URL")
+}
+
+model User {
+  id        String     @id @default(cuid())
+  username  String     @unique
+  email     String     @unique
+  timezone  String     @default("UTC")
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  eventTypes     EventType[]
+  availabilities Availability[]
+  bookings       Booking[]
+
+  @@index([username])
+  @@index([email])
+}
+
+model EventType {
+  id          String     @id @default(cuid())
+  userId      String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  duration    Int        // in minutes
+  slug        String     // unique per user
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  bookings Booking[]
+
+  @@unique([userId, slug])
+  @@index([userId])
+  @@index([slug])
+}
+
+model Availability {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dayOfWeek Int      // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+  startTime String   // HH:MM format
+  endTime   String   // HH:MM format
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, dayOfWeek])
+  @@index([userId])
+}
+
+model Booking {
+  id            String   @id @default(cuid())
+  eventTypeId   String
+  eventType     EventType @relation(fields: [eventTypeId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookerName    String
+  bookerEmail   String
+  bookerPhone   String?
+  startTime     DateTime
+  endTime       DateTime
+  notes         String?
+  status        String   @default("confirmed") // confirmed, cancelled
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId])
+  @@index([eventTypeId])
+  @@index([startTime])
+  @@index([bookerEmail])
+}
