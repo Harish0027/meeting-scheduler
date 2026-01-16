@@ -79,6 +79,13 @@ export class BookingService {
       where,
       include: {
         eventType: true,
+        user: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+          },
+        },
       },
       orderBy: { startTime: "desc" },
     });
