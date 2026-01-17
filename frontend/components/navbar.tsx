@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronDown, LogOut, Settings, User } from "lucide-react";
+import { ChevronDown, LogOut, User } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 
 export function Navbar() {
@@ -103,12 +103,14 @@ export function Navbar() {
           <div className="relative" ref={menuRef}>
             <button
               onClick={() => setMenuOpen(!menuOpen)}
-              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-100 rounded-lg transition-colors"
+              className="flex items-center gap-2 px-2 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-100 rounded-full transition-colors"
             >
-              <User className="w-4 h-4" />
+              <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-white text-sm font-medium">
+                H
+              </div>
               <span className="hidden sm:inline">Harish</span>
               <ChevronDown
-                className={`w-4 h-4 transition-transform ${
+                className={`hidden sm:block w-4 h-4 transition-transform ${
                   menuOpen ? "rotate-180" : ""
                 }`}
               />
@@ -116,17 +118,21 @@ export function Navbar() {
 
             {menuOpen && (
               <div className="absolute right-0 mt-2 w-48 rounded-lg border border-neutral-200 bg-white shadow-lg py-1">
-                <button className="w-full text-left px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-100 flex items-center gap-2">
-                  <Settings className="w-4 h-4" />
-                  Settings
-                </button>
+                <Link
+                  href="/settings/profile"
+                  className="w-full text-left px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-100 flex items-center gap-2"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  <User className="w-4 h-4" />
+                  My profile
+                </Link>
                 <hr className="my-1" />
                 <button
                   onClick={handleLogout}
                   className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
                 >
                   <LogOut className="w-4 h-4" />
-                  Logout
+                  Sign out
                 </button>
               </div>
             )}

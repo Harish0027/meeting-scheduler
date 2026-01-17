@@ -36,8 +36,8 @@ export class UserService {
       user = await prisma.user.create({
         data: {
           username: "admin",
-          email: "admin@scalar-schedule.com",
-          timezone: "UTC",
+          email: "admin@example.com",
+          timezone: "Asia/Calcutta",
         },
       });
     }

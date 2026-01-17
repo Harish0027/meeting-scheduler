@@ -6,7 +6,17 @@ import { userService } from "../services/userService";
 
 export const setAvailability = asyncHandler(
   async (req: Request, res: Response) => {
-    const user = await userService.getDefaultUser();
+    const userIdParam =
+      (req.query.userId as string) || (req.headers["x-user-id"] as string);
+    let user;
+    if (userIdParam) {
+      user = await userService.getUserById(userIdParam);
+      if (!user) {
+        throw new AppError("User not found", 404);
+      }
+    } else {
+      user = await userService.getDefaultUser();
+    }
     const validated = setAvailabilitySchema.parse(req.body);
 
     const availability = await availabilityService.setAvailability(
@@ -23,7 +33,17 @@ export const setAvailability = asyncHandler(
 
 export const getAvailability = asyncHandler(
   async (req: Request, res: Response) => {
-    const user = await userService.getDefaultUser();
+    const userIdParam =
+      (req.query.userId as string) || (req.headers["x-user-id"] as string);
+    let user;
+    if (userIdParam) {
+      user = await userService.getUserById(userIdParam);
+      if (!user) {
+        throw new AppError("User not found", 404);
+      }
+    } else {
+      user = await userService.getDefaultUser();
+    }
     const availabilities = await availabilityService.getAvailabilityByUserId(
       user.id
     );
@@ -38,7 +58,17 @@ export const getAvailability = asyncHandler(
 export const deleteAvailability = asyncHandler(
   async (req: Request, res: Response) => {
     const { dayOfWeek } = req.params;
-    const user = await userService.getDefaultUser();
+    const userIdParam =
+      (req.query.userId as string) || (req.headers["x-user-id"] as string);
+    let user;
+    if (userIdParam) {
+      user = await userService.getUserById(userIdParam);
+      if (!user) {
+        throw new AppError("User not found", 404);
+      }
+    } else {
+      user = await userService.getDefaultUser();
+    }
 
     await availabilityService.deleteAvailability(user.id, parseInt(dayOfWeek));
 

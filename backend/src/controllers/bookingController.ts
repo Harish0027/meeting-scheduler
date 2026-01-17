@@ -1,6 +1,12 @@
 import { Request, Response } from "express";
 import { bookingService } from "../services/bookingService";
-import { createBookingSchema, cancelBookingSchema } from "../validators";
+import {
+  createBookingSchema,
+  cancelBookingSchema,
+  rescheduleBookingSchema,
+  updateBookingLocationSchema,
+  addBookingGuestsSchema,
+} from "../validators";
 import { AppError, asyncHandler } from "../middlewares/errorHandler";
 import { userService } from "../services/userService";
 import { timeSlotService } from "../services/timeSlotService";
@@ -39,10 +45,45 @@ export const getBooking = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const getBookings = asyncHandler(async (req: Request, res: Response) => {
-  const user = await userService.getDefaultUser();
-  const { status } = req.query as { status?: string };
+  // Get userId from query param or x-user-id header; fall back to default user for backwards compat
+  const userIdParam =
+    (req.query.userId as string) || (req.headers["x-user-id"] as string);
+  let user;
+  if (userIdParam) {
+    user = await userService.getUserById(userIdParam);
+    if (!user) {
+      throw new AppError("User not found", 404);
+    }
+  } else {
+    user = await userService.getDefaultUser();
+  }
+  const {
+    status,
+    attendeeName,
+    attendeeEmail,
+    eventTypeId,
+    dateFrom,
+    dateTo,
+    bookingUid,
+  } = req.query as {
+    status?: string;
+    attendeeName?: string;
+    attendeeEmail?: string;
+    eventTypeId?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    bookingUid?: string;
+  };
 
-  const bookings = await bookingService.getBookingsByUserId(user.id, status);
+  const bookings = await bookingService.getBookingsByUserId(user.id, {
+    status,
+    attendeeName,
+    attendeeEmail,
+    eventTypeId,
+    dateFrom,
+    dateTo,
+    bookingUid,
+  });
 
   res.json({
     success: true,
@@ -52,7 +93,17 @@ export const getBookings = asyncHandler(async (req: Request, res: Response) => {
 
 export const getUpcomingBookings = asyncHandler(
   async (req: Request, res: Response) => {
-    const user = await userService.getDefaultUser();
+    const userIdParam =
+      (req.query.userId as string) || (req.headers["x-user-id"] as string);
+    let user;
+    if (userIdParam) {
+      user = await userService.getUserById(userIdParam);
+      if (!user) {
+        throw new AppError("User not found", 404);
+      }
+    } else {
+      user = await userService.getDefaultUser();
+    }
     const bookings = await bookingService.getUpcomingBookings(user.id);
 
     res.json({
@@ -64,7 +115,17 @@ export const getUpcomingBookings = asyncHandler(
 
 export const getPastBookings = asyncHandler(
   async (req: Request, res: Response) => {
-    const user = await userService.getDefaultUser();
+    const userIdParam =
+      (req.query.userId as string) || (req.headers["x-user-id"] as string);
+    let user;
+    if (userIdParam) {
+      user = await userService.getUserById(userIdParam);
+      if (!user) {
+        throw new AppError("User not found", 404);
+      }
+    } else {
+      user = await userService.getDefaultUser();
+    }
     const bookings = await bookingService.getPastBookings(user.id);
 
     res.json({
@@ -77,14 +138,99 @@ export const getPastBookings = asyncHandler(
 export const cancelBooking = asyncHandler(
   async (req: Request, res: Response) => {
     const { id } = req.params;
+    const { bookerEmail } = req.body; // Get bookerEmail for ownership validation
+
+    console.log("Cancel booking request:", { id, body: req.body, bookerEmail });
+
     const validated = cancelBookingSchema.parse({ bookingId: id });
 
-    const booking = await bookingService.cancelBooking(validated.bookingId);
+    if (!bookerEmail) {
+      res.status(400).json({
+        success: false,
+        error: { message: "bookerEmail is required" },
+      });
+      return;
+    }
+
+    const booking = await bookingService.cancelBooking(
+      validated.bookingId,
+      bookerEmail
+    );
 
     res.json({
       success: true,
       data: booking,
       message: "Booking cancelled successfully",
+    });
+  }
+);
+
+export const rescheduleBooking = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const { bookerEmail, ...rescheduleData } = req.body; // Extract bookerEmail
+    const validated = rescheduleBookingSchema.parse(rescheduleData);
+
+    if (!bookerEmail) {
+      res.status(400).json({
+        success: false,
+        error: { message: "bookerEmail is required" },
+      });
+      return;
+    }
+
+    const booking = await bookingService.rescheduleBooking(
+      id,
+      bookerEmail,
+      validated
+    );
+
+    res.json({
+      success: true,
+      data: booking,
+      message: "Booking rescheduled successfully",
+    });
+  }
+);
+
+export const updateBookingLocation = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const validated = updateBookingLocationSchema.parse(req.body);
+
+    const booking = await bookingService.updateBookingLocation(id, validated);
+
+    res.json({
+      success: true,
+      data: booking,
+      message: "Booking location updated successfully",
+    });
+  }
+);
+
+export const addBookingGuests = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { id } = req.params;
+
+    // Verify user is the host (admin)
+    const user = await userService.getDefaultUser();
+    const existingBooking = await bookingService.getBookingById(id);
+
+    if (!existingBooking) {
+      throw new AppError("Booking not found", 404);
+    }
+
+    if (existingBooking.userId !== user.id) {
+      throw new AppError("Only the host can add guests to this booking", 403);
+    }
+
+    const validated = addBookingGuestsSchema.parse(req.body);
+    const booking = await bookingService.addBookingGuests(id, validated);
+
+    res.json({
+      success: true,
+      data: booking,
+      message: "Guests added successfully",
     });
   }
 );
@@ -116,9 +262,9 @@ export const getAvailableTimeSlots = asyncHandler(
     }
 
     const slots = await timeSlotService.generateTimeSlots(
-      user.id,
       event.id,
-      slotDate
+      slotDate,
+      user.timezone || "UTC"
     );
 
     res.json({

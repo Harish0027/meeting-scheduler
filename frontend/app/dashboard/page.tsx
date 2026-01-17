@@ -2,7 +2,15 @@
 
 import React, { useEffect, useState } from "react";
 import { apiClient } from "@/lib/api";
-import { Calendar, Clock, Users, TrendingUp, Plus, ArrowRight } from "lucide-react";
+import { useAuthStore } from "@/lib/store";
+import {
+  Calendar,
+  Clock,
+  Users,
+  TrendingUp,
+  Plus,
+  ArrowRight,
+} from "lucide-react";
 import Link from "next/link";
 
 interface Booking {
@@ -26,21 +34,30 @@ interface EventType {
 }
 
 export default function DashboardPage() {
+  const { user, initFromCookie } = useAuthStore();
   const [upcomingBookings, setUpcomingBookings] = useState<Booking[]>([]);
   const [eventTypes, setEventTypes] = useState<EventType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Initialize user from cookie on mount
   useEffect(() => {
+    initFromCookie();
+  }, [initFromCookie]);
+
+  useEffect(() => {
+    if (!user?.id) return;
     const loadData = async () => {
       const [bookingsRes, eventTypesRes] = await Promise.all([
-        apiClient.get<Booking[]>("/bookings"),
+        apiClient.get<Booking[]>(`/bookings?userId=${user.id}`),
         apiClient.get<EventType[]>("/event-types"),
       ]);
 
       if (bookingsRes.success && bookingsRes.data) {
         const now = new Date();
         const upcoming = bookingsRes.data
-          .filter((b) => new Date(b.startTime) >= now && b.status === "confirmed")
+          .filter(
+            (b) => new Date(b.startTime) >= now && b.status === "confirmed"
+          )
           .slice(0, 5);
         setUpcomingBookings(upcoming);
       }
@@ -53,7 +70,7 @@ export default function DashboardPage() {
     };
 
     loadData();
-  }, []);
+  }, [user?.id]);
 
   const formatTime = (dateStr: string) => {
     return new Date(dateStr).toLocaleTimeString("en-US", {
@@ -98,7 +115,9 @@ export default function DashboardPage() {
                 <Calendar className="w-4 h-4 text-blue-600" />
               </div>
               <div>
-                <p className="text-2xl font-semibold text-gray-900">{upcomingBookings.length}</p>
+                <p className="text-2xl font-semibold text-gray-900">
+                  {upcomingBookings.length}
+                </p>
                 <p className="text-xs text-gray-500">Upcoming</p>
               </div>
             </div>
@@ -109,7 +128,9 @@ export default function DashboardPage() {
                 <Clock className="w-4 h-4 text-green-600" />
               </div>
               <div>
-                <p className="text-2xl font-semibold text-gray-900">{eventTypes.length}</p>
+                <p className="text-2xl font-semibold text-gray-900">
+                  {eventTypes.length}
+                </p>
                 <p className="text-xs text-gray-500">Event Types</p>
               </div>
             </div>
@@ -120,7 +141,9 @@ export default function DashboardPage() {
                 <Users className="w-4 h-4 text-purple-600" />
               </div>
               <div>
-                <p className="text-2xl font-semibold text-gray-900">{eventTypes.filter(e => e.isActive).length}</p>
+                <p className="text-2xl font-semibold text-gray-900">
+                  {eventTypes.filter((e) => e.isActive).length}
+                </p>
                 <p className="text-xs text-gray-500">Active</p>
               </div>
             </div>
@@ -198,8 +221,12 @@ export default function DashboardPage() {
                   <Plus className="w-4 h-4 text-gray-600" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-900">Create Event Type</p>
-                  <p className="text-xs text-gray-500">Add a new scheduling link</p>
+                  <p className="text-sm font-medium text-gray-900">
+                    Create Event Type
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    Add a new scheduling link
+                  </p>
                 </div>
               </Link>
               <Link
@@ -210,8 +237,12 @@ export default function DashboardPage() {
                   <Clock className="w-4 h-4 text-gray-600" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-900">Set Availability</p>
-                  <p className="text-xs text-gray-500">Configure your working hours</p>
+                  <p className="text-sm font-medium text-gray-900">
+                    Set Availability
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    Configure your working hours
+                  </p>
                 </div>
               </Link>
               <Link
@@ -222,8 +253,12 @@ export default function DashboardPage() {
                   <Calendar className="w-4 h-4 text-gray-600" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-900">View Bookings</p>
-                  <p className="text-xs text-gray-500">See all your scheduled meetings</p>
+                  <p className="text-sm font-medium text-gray-900">
+                    View Bookings
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    See all your scheduled meetings
+                  </p>
                 </div>
               </Link>
             </div>

@@ -23,6 +23,12 @@ interface EventType {
   description?: string;
   duration: number;
   slug: string;
+  scheduleId?: string;
+}
+
+interface Schedule {
+  id: string;
+  name: string;
 }
 
 export default function EventTypeForm() {
@@ -32,12 +38,25 @@ export default function EventTypeForm() {
 
   const [isLoading, setIsLoading] = useState(!!eventId);
   const [isSaving, setIsSaving] = useState(false);
+  const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     duration: "30",
     slug: "",
+    scheduleId: "",
   });
+
+  // Load available schedules
+  useEffect(() => {
+    const loadSchedules = async () => {
+      const response = await apiClient.get<Schedule[]>("/schedules");
+      if (response.success && response.data) {
+        setSchedules(response.data);
+      }
+    };
+    loadSchedules();
+  }, []);
 
   useEffect(() => {
     if (eventId && eventId !== "new") {
@@ -52,6 +71,7 @@ export default function EventTypeForm() {
             description: response.data.description || "",
             duration: response.data.duration.toString(),
             slug: response.data.slug,
+            scheduleId: response.data.scheduleId || "",
           });
         } else {
           toast.error("Failed to load event type");
@@ -89,6 +109,7 @@ export default function EventTypeForm() {
       const payload = {
         ...formData,
         duration: parseInt(formData.duration),
+        scheduleId: formData.scheduleId || undefined,
       };
 
       if (eventId && eventId !== "new") {
@@ -236,6 +257,46 @@ export default function EventTypeForm() {
                   </div>
                   <p className="text-xs text-neutral-500 mt-2">
                     Lowercase letters, numbers, and hyphens only
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="scheduleId">Availability Schedule *</Label>
+                  <select
+                    id="scheduleId"
+                    name="scheduleId"
+                    value={formData.scheduleId}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        scheduleId: e.target.value,
+                      }))
+                    }
+                    className="w-full h-10 px-3 py-2 border border-neutral-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-neutral-950"
+                    required
+                  >
+                    <option value="">Select a schedule...</option>
+                    {schedules.map((schedule) => (
+                      <option key={schedule.id} value={schedule.id}>
+                        {schedule.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-neutral-500 mt-2">
+                    Choose when this event can be booked.{" "}
+                    {schedules.length === 0 && (
+                      <span className="text-amber-600">
+                        No schedules available. Create one in{" "}
+                        <button
+                          type="button"
+                          onClick={() => router.push("/availability")}
+                          className="underline hover:text-amber-700"
+                        >
+                          Availability
+                        </button>
+                        .
+                      </span>
+                    )}
                   </p>
                 </div>
 

@@ -4,6 +4,7 @@ import userRoutes from "./routes/userRoutes";
 import eventTypeRoutes from "./routes/eventTypeRoutes";
 import availabilityRoutes from "./routes/availabilityRoutes";
 import bookingRoutes from "./routes/bookingRoutes";
+import scheduleRoutes from "./routes/scheduleRoutes";
 import { errorHandler } from "./middlewares/errorHandler";
 
 export const createApp = (): Express => {
@@ -18,6 +19,7 @@ export const createApp = (): Express => {
   app.use("/api/event-types", eventTypeRoutes);
   app.use("/api/availability", availabilityRoutes);
   app.use("/api/bookings", bookingRoutes);
+  app.use("/api/schedules", scheduleRoutes);
 
   // Health check
   app.get("/api/health", (req, res) => {

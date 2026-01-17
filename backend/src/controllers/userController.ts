@@ -39,9 +39,15 @@ export const getUser = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const updateUser = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const validated = updateUserSchema.parse(req.body);
+  let { id } = req.params;
 
+  // If route is /me, get the default user
+  if (id === "me" || !id) {
+    const defaultUser = await userService.getDefaultUser();
+    id = defaultUser.id;
+  }
+
+  const validated = updateUserSchema.parse(req.body);
   const user = await userService.updateUser(id, validated);
 
   res.json({

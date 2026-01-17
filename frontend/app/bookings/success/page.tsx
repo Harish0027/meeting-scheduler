@@ -1,148 +1,262 @@
 "use client";
 
-import { Suspense } from "react";
-import { useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Check, Calendar, Clock, Mail, ArrowRight } from "lucide-react";
+import {
+  ChevronDown,
+  LogOut,
+  Settings,
+  User,
+  Menu,
+  HelpCircle,
+  FileText,
+  Clock,
+} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
-function BookingSuccessContent() {
-  const searchParams = useSearchParams();
-  const [isLoading, setIsLoading] = useState(true);
+export function Navbar() {
+  const pathname = usePathname();
+  const router = useRouter();
 
-  const eventTitle = searchParams.get("eventTitle") || "Your Event";
-  const guestEmail = searchParams.get("email") || "";
-  const bookingTime = searchParams.get("time") || "";
-  const duration = searchParams.get("duration") || "30";
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  const userMenuRef = useRef<HTMLDivElement>(null);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
+
+  /* ---------------- Click outside handling ---------------- */
   useEffect(() => {
-    // Simulate loading
-    const timer = setTimeout(() => setIsLoading(false), 500);
-    return () => clearTimeout(timer);
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        userMenuRef.current &&
+        !userMenuRef.current.contains(e.target as Node)
+      ) {
+        setUserMenuOpen(false);
+      }
+
+      if (
+        mobileMenuRef.current &&
+        !mobileMenuRef.current.contains(e.target as Node)
+      ) {
+        setMobileMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <p className="text-neutral-600">Loading...</p>
-      </div>
-    );
-  }
+  /* ---------------- App routes only ---------------- */
+  const isAppRoute = [
+    "/dashboard",
+    "/event-types",
+    "/bookings",
+    "/availability",
+    "/settings",
+  ].some((route) => pathname?.startsWith(route));
+
+  if (!isAppRoute) return null;
+
+  /* ---------------- Logout ---------------- */
+  const handleLogout = () => {
+    localStorage.removeItem("authToken");
+    document.cookie =
+      "authToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    router.push("/");
+    router.refresh();
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-white flex items-center justify-center px-4">
-      <div className="max-w-md w-full">
-        {/* Success Icon */}
-        <div className="flex justify-center mb-8">
-          <div className="relative">
-            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center animate-pulse">
-              <Check className="w-10 h-10 text-green-600" />
+    <nav className="sticky top-0 z-50 border-b border-neutral-200 bg-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex h-16 items-center justify-between">
+          {/* ---------------- Logo ---------------- */}
+          <Link href="/dashboard" className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-neutral-900 text-white flex items-center justify-center text-xs font-bold">
+              Cal
             </div>
-          </div>
-        </div>
-
-        {/* Main Message */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-neutral-900 mb-3">
-            Booking Confirmed!
-          </h1>
-          <p className="text-neutral-600 text-lg">
-            Your meeting has been scheduled successfully.
-          </p>
-        </div>
-
-        {/* Booking Details */}
-        <div className="bg-white border border-neutral-200 rounded-lg p-6 mb-8 space-y-4">
-          <div className="flex items-start gap-3">
-            <Calendar className="w-5 h-5 text-neutral-400 mt-0.5 flex-shrink-0" />
-            <div>
-              <p className="text-sm text-neutral-600">Event Type</p>
-              <p className="text-base font-semibold text-neutral-900">
-                {eventTitle}
-              </p>
-            </div>
-          </div>
-
-          {bookingTime && (
-            <div className="flex items-start gap-3 border-t border-neutral-100 pt-4">
-              <Clock className="w-5 h-5 text-neutral-400 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="text-sm text-neutral-600">Scheduled Time</p>
-                <p className="text-base font-semibold text-neutral-900">
-                  {bookingTime}
-                </p>
-                <p className="text-sm text-neutral-600 mt-1">
-                  Duration: {duration} minutes
-                </p>
-              </div>
-            </div>
-          )}
-
-          {guestEmail && (
-            <div className="flex items-start gap-3 border-t border-neutral-100 pt-4">
-              <Mail className="w-5 h-5 text-neutral-400 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="text-sm text-neutral-600">Confirmation Email</p>
-                <p className="text-base font-semibold text-neutral-900">
-                  {guestEmail}
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Additional Info */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8">
-          <p className="text-sm text-blue-900">
-            A confirmation email with meeting details has been sent to your
-            email address. Please check your inbox and spam folder.
-          </p>
-        </div>
-
-        {/* Actions */}
-        <div className="flex flex-col gap-3">
-          <Link href="/dashboard">
-            <Button className="w-full h-10 bg-neutral-900 hover:bg-neutral-800 text-white gap-2">
-              Go to Dashboard
-              <ArrowRight className="w-4 h-4" />
-            </Button>
+            <span className="hidden sm:inline text-sm font-semibold">
+              Cal.com
+            </span>
           </Link>
-          <Link href="/">
-            <Button
-              variant="outline"
-              className="w-full h-10 border-neutral-200 hover:bg-neutral-100"
+
+          {/* ---------------- Desktop Nav ---------------- */}
+          <div className="hidden md:flex items-center gap-8">
+            <NavLink
+              href="/dashboard"
+              active={pathname?.startsWith("/dashboard")}
             >
-              Back to Home
-            </Button>
-          </Link>
-        </div>
+              Dashboard
+            </NavLink>
+            <NavLink
+              href="/event-types"
+              active={pathname?.startsWith("/event-types")}
+            >
+              Event Types
+            </NavLink>
+            <NavLink
+              href="/bookings"
+              active={pathname?.startsWith("/bookings")}
+            >
+              Bookings
+            </NavLink>
+            <NavLink
+              href="/availability"
+              active={pathname?.startsWith("/availability")}
+            >
+              Availability
+            </NavLink>
+          </div>
 
-        {/* Footer Message */}
-        <p className="text-center text-sm text-neutral-600 mt-8">
-          Questions? Contact support at{" "}
-          <a
-            href="mailto:support@cal.com"
-            className="text-neutral-900 font-semibold hover:underline"
-          >
-            support@cal.com
-          </a>
-        </p>
+          {/* ---------------- Mobile Menu ---------------- */}
+          <div className="md:hidden relative" ref={mobileMenuRef}>
+            <button
+              onClick={() => setMobileMenuOpen((v) => !v)}
+              className="p-2 rounded-lg hover:bg-neutral-100"
+            >
+              <Menu className="w-6 h-6 text-neutral-700" />
+            </button>
+
+            {mobileMenuOpen && (
+              <div className="absolute right-0 mt-2 w-64 rounded-xl border border-neutral-200 bg-white shadow-lg py-1">
+                <MobileItem
+                  icon={User}
+                  label="My profile"
+                  href="/settings/profile"
+                  close={() => setMobileMenuOpen(false)}
+                />
+                <MobileItem
+                  icon={Settings}
+                  label="My settings"
+                  href="/settings"
+                  close={() => setMobileMenuOpen(false)}
+                />
+                <MobileItem
+                  icon={Clock}
+                  label="Out of office"
+                  href="/out-of-office"
+                  close={() => setMobileMenuOpen(false)}
+                />
+
+                <hr className="my-1" />
+
+                <MobileItem
+                  icon={FileText}
+                  label="Roadmap"
+                  href="/roadmap"
+                  close={() => setMobileMenuOpen(false)}
+                />
+                <MobileItem
+                  icon={HelpCircle}
+                  label="Help"
+                  href="/help"
+                  close={() => setMobileMenuOpen(false)}
+                />
+
+                <hr className="my-1" />
+
+                <button
+                  onClick={() => {
+                    handleLogout();
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Sign out
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* ---------------- Desktop User Menu ---------------- */}
+          <div className="hidden md:block relative" ref={userMenuRef}>
+            <button
+              onClick={() => setUserMenuOpen((v) => !v)}
+              className="flex items-center gap-2 px-2 py-2 rounded-full hover:bg-neutral-100"
+            >
+              <div className="w-8 h-8 rounded-full bg-purple-600 text-white flex items-center justify-center text-sm font-medium">
+                H
+              </div>
+              <span className="text-sm">Harish</span>
+              <ChevronDown
+                className={`w-4 h-4 transition-transform ${
+                  userMenuOpen ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+
+            {userMenuOpen && (
+              <div className="absolute right-0 mt-2 w-48 rounded-lg border border-neutral-200 bg-white shadow-lg py-1">
+                <Link
+                  href="/settings/profile"
+                  onClick={() => setUserMenuOpen(false)}
+                  className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-neutral-100"
+                >
+                  <User className="w-4 h-4" />
+                  My profile
+                </Link>
+
+                <hr className="my-1" />
+
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Sign out
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
-    </div>
+    </nav>
   );
 }
 
-export default function BookingSuccessPage() {
+/* ---------------- Reusable Components ---------------- */
+
+function NavLink({
+  href,
+  active,
+  children,
+}: {
+  href: string;
+  active: boolean;
+  children: React.ReactNode;
+}) {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-white flex items-center justify-center">
-          <p className="text-neutral-600">Loading...</p>
-        </div>
-      }
+    <Link
+      href={href}
+      className={`text-sm font-medium transition-colors ${
+        active ? "text-neutral-900" : "text-neutral-600 hover:text-neutral-900"
+      }`}
     >
-      <BookingSuccessContent />
-    </Suspense>
+      {children}
+    </Link>
+  );
+}
+
+function MobileItem({
+  icon: Icon,
+  label,
+  href,
+  close,
+}: {
+  icon: any;
+  label: string;
+  href: string;
+  close: () => void;
+}) {
+  return (
+    <Link
+      href={href}
+      onClick={close}
+      className="flex items-center gap-3 px-4 py-2.5 text-sm text-neutral-700 hover:bg-neutral-100"
+    >
+      <Icon className="w-4 h-4" />
+      {label}
+    </Link>
   );
 }

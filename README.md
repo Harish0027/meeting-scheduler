@@ -1,466 +1,639 @@
-# Scalar Schedule
+# 📅 Scalar Schedule
 
-A production-ready scheduling platform inspired by [Cal.com](https://cal.com), built with modern web technologies.
+[![GitHub Repo](https://img.shields.io/badge/GitHub-meeting--scheduler-blue?logo=github)](https://github.com/Harish0027/meeting-scheduler)
 
-## 📋 Overview
+A production-ready meeting scheduling platform inspired by [Cal.com](https://cal.com), built with modern web technologies. This project demonstrates a full-stack implementation with user authentication, event management, availability scheduling, and booking functionality.
 
-Scalar Schedule is a full-stack meeting scheduler that allows users to:
+---
+
+## 📋 Table of Contents
+
+- [Overview](#overview)
+- [System Architecture](#system-architecture)
+- [Tech Stack](#tech-stack)
+- [Features](#features)
+- [Database Schema](#database-schema)
+- [API Endpoints](#api-endpoints)
+- [Getting Started](#getting-started)
+- [Environment Variables](#environment-variables)
+- [Project Structure](#project-structure)
+- [Caching Strategy](#caching-strategy)
+
+---
+
+## 🎯 Overview
+
+Scalar Schedule allows users to:
 
 - Create and manage event types with custom durations
-- Set availability across different days and time slots
+- Set availability schedules across different days and time zones
 - Generate public booking links for others to book meetings
 - Manage bookings with double-booking prevention
-- View upcoming and past bookings
+- View, filter, and manage upcoming and past bookings
 
-## ✨ Features
+---
 
-### Core Features
+## 🏗️ System Architecture
 
-- **Event Type Management**
+---
 
-  - Create, edit, and delete event types
-  - Unique URL slugs for each event
-  - Duration and description customization
-  - Dashboard listing of all events
+## 🔄 User Flow Diagram
 
-- **Availability Management**
+```
+┌───────────────┐
+│    Visitor    │
+└───────┬───────┘
+  │
+  ▼
+┌─────────────────────────────┐
+│  Booking Link (Public URL)  │
+└───────┬─────────────────────┘
+  │
+  ▼
+┌─────────────────────────────┐
+│  Select Event Type & Date   │
+└───────┬─────────────────────┘
+  │
+  ▼
+┌─────────────────────────────┐
+│  See Available Time Slots   │
+└───────┬─────────────────────┘
+  │
+  ▼
+┌─────────────────────────────┐
+│  Fill Booking Form          │
+└───────┬─────────────────────┘
+  │
+  ▼
+┌─────────────────────────────┐
+│  Submit Booking             │
+└───────┬─────────────────────┘
+  │
+  ▼
+┌─────────────────────────────┐
+│  Frontend (Next.js)         │
+└───────┬─────────────────────┘
+  │
+  ▼
+┌─────────────────────────────┐
+│  Backend (Express.js)       │
+└───────┬─────────────────────┘
+  │
+  ▼
+┌─────────────────────────────┐
+│  Cache (Upstash Redis)      │
+└───────┬─────────────────────┘
+  │
+  ▼
+┌─────────────────────────────┐
+│  Database (Neon/Postgres)   │
+└─────────────────────────────┘
+  │
+  ▼
+┌─────────────────────────────┐
+│  Confirmation Page          │
+└─────────────────────────────┘
+```
 
-  - Set working days and hours
-  - Per-day time slot configuration
-  - Timezone support
-  - Flexible scheduling
+```
+┌────────────────────────────────────────────────────────────────────────────────────────────┐
+│                              MEETING SCHEDULER SYSTEM                                      │
+├────────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                            │
+│  ┌──────────────────────────────────────────────────────────────────────────────────────┐  │
+│  │                           FRONTEND (Next.js + React + TS)                            │  │
+│  ├──────────────────────────────────────────────────────────────────────────────────────┤  │
+│  │                                                                                      │  │
+│  │   ┌──────────────┐   ┌──────────────┐   ┌──────────────┐   ┌──────────────┐        │  │
+│  │   │ Dashboard    │   │ Bookings     │   │ Availability │   │ Event Types  │        │  │
+│  │   │   Page       │   │   Page       │   │   Page       │   │   Page       │        │  │
+│  │   └──────────────┘   └──────────────┘   └──────────────┘   └──────────────┘        │  │
+│  │                                                                                      │  │
+│  │   ┌──────────────────────────────────────────────────────────────────────────────┐ │  │
+│  │   │                        Zustand Store (State Management)                        │ │  │
+│  │   └──────────────────────────────────────────────────────────────────────────────┘ │  │
+│  │                                                                                      │  │
+│  │   ┌──────────────────────────────────────────────────────────────────────────────┐ │  │
+│  │   │                         API Service (lib/api.ts)                              │ │  │
+│  │   └──────────────────────────────────────────────────────────────────────────────┘ │  │
+│  │                                                                                      │  │
+│  └──────────────────────────────────────────────────────────────────────────────────────┘  │
+│                                                                                            │
+│  ┌──────────────────────────────────────────────────────────────────────────────────────┐  │
+│  │                            BACKEND (Express + TypeScript)                            │  │
+│  ├──────────────────────────────────────────────────────────────────────────────────────┤  │
+│  │                                                                                      │  │
+│  │   ┌──────────────────────────────────────────────────────────────────────────────┐ │  │
+│  │   │                         Express Application                                   │ │  │
+│  │   ├──────────────────────────────────────────────────────────────────────────────┤ │  │
+│  │   │  /api/users                                                                   │ │  │
+│  │   │  /api/bookings                                                                │ │  │
+│  │   │  /api/schedules                                                               │ │  │
+│  │   │  /api/event-types                                                             │ │  │
+│  │   └──────────────────────────────────────────────────────────────────────────────┘ │  │
+│  │                                                                                      │  │
+│  │   ┌──────────────┐   ┌──────────────┐   ┌──────────────┐                          │  │
+│  │   │ Redis Cache  │   │ Prisma ORM   │   │  Validation  │                          │  │
+│  │   │ (Upstash)    │   │ (Postgres)   │   │  (Zod)       │                          │  │
+│  │   └──────────────┘   └──────────────┘   └──────────────┘                          │  │
+│  │                                                                                      │  │
+│  └──────────────────────────────────────────────────────────────────────────────────────┘  │
+│                                                                                            │
+│  ┌──────────────────────────────┐   ┌──────────────────────────────┐                    │
+│  │        Upstash Redis         │   │        Neon/Postgres         │                    │
+│  │        (Cloud Cache)         │   │        (Database)            │                    │
+│  └──────────────────────────────┘   └──────────────────────────────┘                    │
+│                                                                                            │
+└────────────────────────────────────────────────────────────────────────────────────────────┘
+```
 
-- **Public Booking Interface**
+### Data Flow Diagram
 
-  - Cal.com-inspired UI design
-  - Interactive calendar for date selection
-  - Real-time availability checking
-  - Form validation with Zod
-  - Booking confirmation
+```
+┌──────────┐     ┌──────────┐     ┌──────────┐     ┌──────────┐     ┌──────────┐
+│  User    │────▶│ Frontend │────▶│ Backend  │────▶│  Cache   │────▶│ Database │
+│  Action  │     │(Next.js) │     │(Express) │     │ (Redis)  │     │(Postgres)│
+└──────────┘     └──────────┘     └──────────┘     └──────────┘     └──────────┘
+     │                │                │                │                │
+     │   1. Click     │                │                │                │
+     │───────────────▶│                │                │                │
+     │                │  2. API Call   │                │                │
+     │                │───────────────▶│                │                │
+     │                │                │  3. Check      │                │
+     │                │                │     Cache      │                │
+     │                │                │───────────────▶│                │
+     │                │                │                │                │
+     │                │                │  4a. Cache Hit │                │
+     │                │                │◀───────────────│                │
+     │                │                │                │                │
+     │                │                │  4b. Cache Miss - Query DB      │
+     │                │                │───────────────────────────────▶│
+     │                │                │                                 │
+     │                │                │  5. Return Data + Update Cache  │
+     │                │                │◀───────────────────────────────│
+     │                │  6. Response   │                │                │
+     │                │◀───────────────│                │                │
+     │  7. UI Update  │                │                │                │
+     │◀───────────────│                │                │                │
+```
 
-- **Bookings Dashboard**
+### Booking Flow
 
-  - View upcoming and past bookings
-  - Filter by status
-  - Cancel bookings
-  - Display booking details
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         PUBLIC BOOKING FLOW                              │
+└─────────────────────────────────────────────────────────────────────────┘
 
-- **Security & Validation**
-  - Double-booking prevention
-  - Zod schema validation (frontend & backend)
-  - Type-safe API client
-  - CORS enabled
+  ┌─────────┐      ┌─────────────┐      ┌─────────────┐      ┌─────────┐
+  │  Guest  │      │ Select Date │      │ Select Time │      │  Form   │
+  │  Visits │─────▶│  Calendar   │─────▶│    Slot     │─────▶│  Fill   │
+  │  Link   │      │             │      │             │      │         │
+  └─────────┘      └─────────────┘      └─────────────┘      └────┬────┘
+       │                  │                   │                    │
+       │                  │                   │                    ▼
+       │                  │                   │            ┌─────────────┐
+       │                  │                   │            │   Confirm   │
+       │                  │                   │            │   Booking   │
+       │                  │                   │            └──────┬──────┘
+       │                  │                   │                   │
+       │                  │                   │                   ▼
+       │                  │                   │            ┌─────────────┐
+       │                  │                   │            │  Validation │
+       │                  │                   │            │  • Overlap  │
+       │                  │                   │            │  • Buffer   │
+       │                  │                   │            │  • Max/Day  │
+       │                  │                   │            └──────┬──────┘
+       │                  │                   │                   │
+       ▼                  ▼                   ▼                   ▼
+  ┌───────────────────────────────────────────────────────────────────┐
+  │                      ✅ BOOKING CONFIRMED                          │
+  │                    Saved to Database + Email                       │
+  └───────────────────────────────────────────────────────────────────┘
+```
 
-## 🛠 Tech Stack
+---
+
+## 🛠️ Tech Stack
 
 ### Frontend
 
-- **Next.js 16** - React framework with App Router
-- **React 19** - UI library
-- **Tailwind CSS 4** - Styling
-- **Zod** - Form validation
-- **Zustand** - State management (when needed)
-- **react-hot-toast** - Notifications
-- **date-fns** - Date utilities
+| Technology          | Purpose                         |
+| ------------------- | ------------------------------- |
+| **Next.js 16**      | React framework with App Router |
+| **React 19**        | UI library                      |
+| **TypeScript**      | Type safety                     |
+| **Tailwind CSS 4**  | Styling                         |
+| **Zustand**         | Global state management         |
+| **Zod**             | Form validation                 |
+| **date-fns**        | Date utilities                  |
+| **Lucide React**    | Icons                           |
+| **react-hot-toast** | Notifications                   |
 
 ### Backend
 
-- **Node.js** - Runtime
-- **Express.js** - Web framework
-- **PostgreSQL** - Database
-- **Prisma** - ORM
-- **Zod** - Request validation
-- **TypeScript** - Type safety
+| Technology        | Purpose                  |
+| ----------------- | ------------------------ |
+| **Node.js**       | Runtime environment      |
+| **Express.js**    | Web framework            |
+| **TypeScript**    | Type safety              |
+| **Prisma**        | ORM for database         |
+| **PostgreSQL**    | Primary database         |
+| **Upstash Redis** | Caching layer (optional) |
+| **Zod**           | Request validation       |
 
 ### UI Components (shadcn/ui)
 
-- Button
-- Card
-- Input
-- Label
-- Badge
-- Dialog
-- Calendar
+- Button, Card, Input, Label, Badge
+- Dialog, AlertDialog, Calendar
+- Table, Pagination
+
+---
+
+## ✨ Features
+
+### 🔐 User Management
+
+- User registration and login
+- Profile management with timezone support
+- Cookie-based session management
+
+### 📅 Event Type Management
+
+- Create, edit, delete event types
+- Custom durations (15, 30, 45, 60+ minutes)
+- Unique URL slugs per event
+- Link to availability schedules
+- Toggle active/inactive status
+
+### ⏰ Availability Management
+
+- Multiple availability schedules per user
+- Per-day time slot configuration
+- Timezone support (IANA timezones)
+- Default schedule assignment
+- Duplicate and delete schedules
+
+### 📆 Booking System
+
+- Public booking page (`/:username/:event-slug`)
+- Interactive calendar date picker
+- Real-time slot availability
+- Double-booking prevention
+- Buffer time between meetings
+- Max bookings per day limit
+- Guest email support
+- Location options (Video, In-person, Phone)
+
+### 📊 Bookings Dashboard
+
+- Filter by: Upcoming, Past, Cancelled
+- Search by attendee name/email
+- Filter by event type and date range
+- Cancel and reschedule bookings
+- Add guests to existing bookings
+- Responsive mobile design
+
+---
+
+## 🗃️ Database Schema
+
+```
+┌─────────────────┐       ┌─────────────────┐       ┌─────────────────┐
+│      User       │       │    EventType    │       │    Schedule     │
+├─────────────────┤       ├─────────────────┤       ├─────────────────┤
+│ id (PK)         │──┐    │ id (PK)         │       │ id (PK)         │
+│ username        │  │    │ userId (FK)     │◀──┐   │ userId (FK)     │◀─┐
+│ email           │  │    │ title           │   │   │ name            │  │
+│ name            │  │    │ description     │   │   │ timezone        │  │
+│ bio             │  │    │ duration        │   │   │ isDefault       │  │
+│ timezone        │  │    │ slug            │   │   └────────┬────────┘  │
+└────────┬────────┘  │    │ scheduleId (FK) │───┼────────────┘           │
+         │           │    │ location        │   │                        │
+         │           │    │ bufferTime      │   │   ┌─────────────────┐  │
+         │           │    │ maxBookingsDay  │   │   │  ScheduleSlot   │  │
+         │           │    │ isActive        │   │   ├─────────────────┤  │
+         │           │    └────────┬────────┘   │   │ id (PK)         │  │
+         │           │             │            │   │ scheduleId (FK) │──┘
+         │           │             │            │   │ dayOfWeek       │
+         │           │             ▼            │   │ startTime       │
+         │           │    ┌─────────────────┐   │   │ endTime         │
+         │           │    │     Booking     │   │   └─────────────────┘
+         │           │    ├─────────────────┤   │
+         │           │    │ id (PK)         │   │
+         │           └───▶│ userId (FK)     │   │
+         │                │ eventTypeId(FK) │◀──┘
+         │                │ bookerName      │
+         │                │ bookerEmail     │
+         │                │ startTime       │
+         │                │ endTime         │
+         │                │ timeZone        │
+         │                │ location        │
+         │                │ guests[]        │
+         │                │ status          │
+         │                └─────────────────┘
+         │
+         │           ┌─────────────────┐
+         │           │  Availability   │
+         │           ├─────────────────┤
+         └──────────▶│ id (PK)         │
+                     │ userId (FK)     │
+                     │ dayOfWeek       │
+                     │ startTime       │
+                     │ endTime         │
+                     └─────────────────┘
+```
+
+---
+
+## 🔌 API Endpoints
+
+### Users
+
+| Method | Endpoint               | Description          |
+| ------ | ---------------------- | -------------------- |
+| GET    | `/api/users/:username` | Get user by username |
+| POST   | `/api/users`           | Create/login user    |
+| PUT    | `/api/users/:id`       | Update user profile  |
+
+### Event Types
+
+| Method | Endpoint                      | Description                              |
+| ------ | ----------------------------- | ---------------------------------------- |
+| GET    | `/api/event-types`            | Get all event types (with userId filter) |
+| GET    | `/api/event-types/:id`        | Get event type by ID                     |
+| GET    | `/api/event-types/slug/:slug` | Get event type by slug                   |
+| POST   | `/api/event-types`            | Create event type                        |
+| PUT    | `/api/event-types/:id`        | Update event type                        |
+| DELETE | `/api/event-types/:id`        | Delete event type                        |
+
+### Schedules (Availability)
+
+| Method | Endpoint                       | Description          |
+| ------ | ------------------------------ | -------------------- |
+| GET    | `/api/schedules`               | Get user's schedules |
+| GET    | `/api/schedules/:id`           | Get schedule by ID   |
+| POST   | `/api/schedules`               | Create schedule      |
+| PUT    | `/api/schedules/:id`           | Update schedule      |
+| POST   | `/api/schedules/:id/duplicate` | Duplicate schedule   |
+| DELETE | `/api/schedules/:id`           | Delete schedule      |
+
+### Bookings
+
+| Method | Endpoint                              | Description                 |
+| ------ | ------------------------------------- | --------------------------- |
+| GET    | `/api/bookings`                       | Get bookings (with filters) |
+| GET    | `/api/bookings/:id`                   | Get booking by ID           |
+| POST   | `/api/bookings/:username/:slug`       | Create booking              |
+| PUT    | `/api/bookings/:id/cancel`            | Cancel booking              |
+| PUT    | `/api/bookings/:id/reschedule`        | Reschedule booking          |
+| PUT    | `/api/bookings/:id/location`          | Update location             |
+| PUT    | `/api/bookings/:id/guests`            | Add guests                  |
+| GET    | `/api/bookings/:username/:slug/slots` | Get available slots         |
+
+---
 
 ## 🚀 Getting Started
 
 ### Prerequisites
 
-- Node.js 18+
-- PostgreSQL database
-- npm or yarn
+- **Node.js 18+**
+- **PostgreSQL** (or use [Neon](https://neon.tech) cloud PostgreSQL)
+- **npm** or **yarn**
 
-### Setup Instructions
+### Quick Start
 
-1. **Clone the repository**
-
-   ```bash
-   git clone <repo-url>
-   cd meeting-scheduler
-   ```
-
-2. **Backend Setup**
-
-   ```bash
-   cd backend
-
-   # Install dependencies
-   npm install
-
-   # Configure environment
-   cp .env.example .env.local
-   # Edit .env.local with your PostgreSQL URL
-
-   # Setup database
-   npx prisma migrate dev
-
-   # Start development server
-   npm run dev
-   # Server runs on http://localhost:3001
-   ```
-
-3. **Frontend Setup**
-
-   ```bash
-   cd ../frontend
-
-   # Install dependencies
-   npm install
-
-   # Start development server
-   npm run dev
-   # App runs on http://localhost:3000
-   ```
-
-### Environment Variables
-
-**Backend (.env.local)**
-
-```
-DATABASE_URL=postgresql://user:password@localhost:5432/scalar_schedule
-NODE_ENV=development
-PORT=3001
-```
-
-**Frontend (.env.local)**
-
-```
-NEXT_PUBLIC_API_URL=http://localhost:3001/api
-```
-
-## 📡 API Documentation
-
-### Base URL
-
-```
-http://localhost:3001/api
-```
-
-### Authentication
-
-The system uses a default admin user. No authentication flow is implemented for this version.
-
-### Endpoints
-
-#### Users
-
-- `POST /users` - Create/get user
-- `GET /users/profile` - Get current user
-- `GET /users/:username` - Get user by username
-
-#### Event Types
-
-- `POST /event-types` - Create event type
-- `GET /event-types/all` - List all event types
-- `GET /event-types/:id` - Get event type details
-- `PUT /event-types/:id` - Update event type
-- `DELETE /event-types/:id` - Delete event type
-- `GET /event-types/:username/:slug` - Get public event type
-
-#### Availability
-
-- `POST /availability` - Set availability for a day
-- `GET /availability` - Get user availability
-- `DELETE /availability/:dayOfWeek` - Delete availability
-
-#### Bookings
-
-- `POST /bookings/:username/:slug` - Create booking (public)
-- `GET /bookings` - List bookings
-- `GET /bookings/:id` - Get booking details
-- `GET /bookings/upcoming` - Get upcoming bookings
-- `GET /bookings/past` - Get past bookings
-- `PUT /bookings/:id/cancel` - Cancel booking
-- `GET /bookings/:username/:slug/slots` - Get available time slots
-
-## 🔒 Validation
-
-### Frontend Validation (Zod)
-
-All forms use Zod for client-side validation:
-
-- Event type forms
-- Booking forms
-- Availability forms
-
-### Backend Validation (Zod)
-
-Request bodies are validated using Zod schemas:
-
-```typescript
-createEventTypeSchema;
-updateEventTypeSchema;
-createBookingSchema;
-setAvailabilitySchema;
-```
-
-### Double-Booking Prevention
-
-- Time slots are checked in real-time
-- Bookings use database transactions
-- Overlapping slots are prevented at creation
-
-## 🗄 Database Schema
-
-### Models
-
-**User**
-
-- id, username (unique), email (unique)
-- timezone, createdAt, updatedAt
-- Relations: EventTypes, Availabilities, Bookings
-
-**EventType**
-
-- id, userId, title, description
-- duration (in minutes), slug
-- unique constraint on (userId, slug)
-- Relations: User, Bookings
-
-**Availability**
-
-- id, userId, dayOfWeek (0-6)
-- startTime, endTime (HH:MM format)
-- unique constraint on (userId, dayOfWeek)
-- Relations: User
-
-**Booking**
-
-- id, eventTypeId, userId
-- bookerName, bookerEmail, bookerPhone
-- startTime, endTime (DateTime)
-- status (confirmed/cancelled), notes
-- Relations: EventType, User
-
-### Indexes
-
-- User: username, email
-- EventType: userId, slug
-- Availability: userId
-- Booking: userId, eventTypeId, startTime, bookerEmail
-
-## 📐 Architecture
-
-### Backend Architecture
-
-```
-src/
-├── controllers/      # Route handlers
-├── services/         # Business logic
-├── routes/          # API routes
-├── middlewares/     # Express middlewares
-├── validators/      # Zod schemas
-├── db/              # Database connection
-└── index.ts         # Entry point
-```
-
-### Frontend Architecture
-
-```
-app/
-├── dashboard/                    # Admin dashboard
-├── event-types/[id]/            # Event type form
-├── availability/                # Availability settings
-├── bookings/                    # Bookings list
-└── [username]/[slug]/           # Public booking page
-components/
-├── ui/                          # shadcn/ui components
-lib/
-├── api.ts                       # API client
-├── store.ts                     # Zustand store
-├── validations.ts               # Zod schemas
-└── utils.ts                     # Utilities
-```
-
-## 🎨 UI/UX Design
-
-- **Cal.com-inspired** clean and minimal design
-- **Responsive** - Mobile, tablet, desktop
-- **Accessible** - Semantic HTML, proper labels
-- **Consistent** - Uniform spacing, typography, colors
-- **Interactive** - Real-time validation, toast notifications
-- **Optimized** - Fast load times, smooth interactions
-
-## 🔐 Security Features
-
-- Input validation with Zod
-- SQL injection prevention (Prisma ORM)
-- CORS enabled for cross-origin requests
-- Type-safe API communication
-- Environment variable protection
-- Request/response error handling
-
-## 📦 Deployment
-
-### Backend (Production)
+#### 1. Clone the Repository
 
 ```bash
-npm run build
-npm start
+git clone https://github.com/Harish0027/meeting-scheduler.git
+cd meeting-scheduler
 ```
 
-### Frontend (Production)
+#### 2. Setup Backend
 
 ```bash
-npm run build
-npm start
+cd backend
+
+# Install dependencies
+npm install
+
+# Create .env file (copy from example or create manually)
+# Add your DATABASE_URL and optional Redis credentials
+
+# Generate Prisma client
+npx prisma generate
+
+# Run database migrations
+npx prisma migrate dev
+
+# Start development server
+npm run dev
 ```
 
-Both are ready for deployment on platforms like:
+The backend will run on **http://localhost:3001**
 
-- Vercel (Frontend)
-- Heroku, Railway, or AWS (Backend)
-
-## 🧪 Testing the Application
-
-1. **Create an event type**
-
-   - Navigate to dashboard
-   - Click "New Event"
-   - Fill in details and create
-
-2. **Set availability**
-
-   - Go to "Availability" settings
-   - Select days and set working hours
-   - Save configuration
-
-3. **Create a booking**
-
-   - Get the public booking link
-   - Select a date, time, and enter details
-   - Confirm booking
-
-4. **Manage bookings**
-   - View bookings in the dashboard
-   - See upcoming and past bookings
-   - Cancel bookings if needed
-
-## 📝 Assumptions
-
-1. **Single Admin User** - One default admin user (email: admin@scalar-schedule.com)
-2. **No Authentication** - No signup/login flow required
-3. **Public Bookings** - Booking pages are publicly accessible
-4. **Timezone Handling** - All times stored in UTC, frontend converts based on user timezone
-5. **15-minute Slots** - Available time slots are generated in 15-minute intervals
-6. **PostgreSQL** - Database is PostgreSQL (can be adapted for other databases)
-7. **Transactional Bookings** - Bookings are atomic to prevent double-booking
-
-## 🔧 Development
-
-### Scripts
-
-**Backend**
+#### 3. Setup Frontend
 
 ```bash
-npm run dev          # Start development server
-npm run build        # Build for production
-npm start            # Start production server
-npm run prisma:migrate    # Run migrations
-npm run prisma:studio     # Open Prisma Studio
+cd frontend
+
+# Install dependencies
+npm install
+
+# Create .env.local file
+echo "NEXT_PUBLIC_API_URL=http://localhost:3001/api" > .env.local
+
+# Start development server
+npm run dev
 ```
 
-**Frontend**
+The frontend will run on **http://localhost:3000**
 
-```bash
-npm run dev          # Start development server
-npm run build        # Build for production
-npm start            # Start production server
-npm run lint         # Run ESLint
-```
+#### 4. Access the Application
 
-## 📝 Environment Setup for Development
-
-1. Install PostgreSQL locally or use a cloud provider
-2. Create a database called `scalar_schedule`
-3. Set `DATABASE_URL` in backend `.env.local`
-4. Run `npx prisma migrate dev`
-5. The admin user is created automatically on first server start
-
-## 🐛 Troubleshooting
-
-**Port already in use**
-
-```bash
-# Change PORT in .env.local
-PORT=3002
-```
-
-**Database connection error**
-
-```bash
-# Verify DATABASE_URL and PostgreSQL is running
-psql -U postgres -d scalar_schedule
-```
-
-**API calls failing**
-
-```bash
-# Check NEXT_PUBLIC_API_URL in frontend .env.local
-# Ensure backend is running on http://localhost:3001
-```
-
-## 📚 Key Libraries & Their Usage
-
-| Library         | Purpose                      |
-| --------------- | ---------------------------- |
-| Prisma          | ORM for database operations  |
-| Zod             | Schema validation            |
-| Express         | REST API framework           |
-| Next.js         | React framework with SSR     |
-| Tailwind CSS    | Utility-first CSS            |
-| Zustand         | Lightweight state management |
-| react-hot-toast | Toast notifications          |
-| date-fns        | Date manipulation            |
-
-## 🎯 Performance Optimizations
-
-- **Database Indexes** - On frequently queried fields
-- **Pagination** - For large booking lists
-- **Debouncing** - For form input validation
-- **Caching** - Availability data can be cached
-- **SSR** - Public booking pages for better SEO
-- **Optimized Queries** - Eager loading of relations
-
-## 🚀 Future Enhancements
-
-- Email notifications on booking confirmation
-- Calendar sync (Google Calendar, Outlook)
-- Timezone auto-detection
-- Custom branding for public pages
-- Meeting reminders
-- Video conferencing integration
-- Recurring events
-- Advanced analytics
-
-## 📄 License
-
-ISC
-
-## 👥 Contributing
-
-This is a Scalar SDE Intern assignment project.
+1. Open **http://localhost:3000** in your browser
+2. Login or create an account
+3. Create event types and set availability
+4. Share your booking link: `http://localhost:3000/{username}/{event-slug}`
 
 ---
 
-**Built with ❤️ for Scalar**
+## ⚙️ Environment Variables
+
+### Backend (`backend/.env`)
+
+```env
+# Database (Required)
+DATABASE_URL="postgresql://user:password@host:5432/database?sslmode=require"
+
+# Server
+NODE_ENV="development"
+PORT=3001
+
+# Caching (Optional - falls back to in-memory if not set)
+UPSTASH_REDIS_REST_URL="https://your-redis-url.upstash.io"
+UPSTASH_REDIS_REST_TOKEN="your-redis-token"
+```
+
+### Frontend (`frontend/.env.local`)
+
+```env
+NEXT_PUBLIC_API_URL=http://localhost:3001/api
+```
+
+---
+
+## 📁 Project Structure
+
+```
+meeting-scheduler/
+├── backend/
+│   ├── prisma/
+│   │   ├── schema.prisma          # Database schema
+│   │   └── migrations/            # Database migrations
+│   ├── src/
+│   │   ├── controllers/           # Route handlers
+│   │   │   ├── bookingController.ts
+│   │   │   ├── eventTypeController.ts
+│   │   │   ├── scheduleController.ts
+│   │   │   └── userController.ts
+│   │   ├── services/              # Business logic
+│   │   │   ├── bookingService.ts
+│   │   │   ├── eventTypeService.ts
+│   │   │   ├── scheduleService.ts
+│   │   │   └── userService.ts
+│   │   ├── routes/                # API route definitions
+│   │   ├── middlewares/           # Express middlewares
+│   │   ├── utils/                 # Utility functions
+│   │   │   ├── redis.ts           # Cache helpers
+│   │   │   └── validations.ts     # Validation utilities
+│   │   ├── validators/            # Zod schemas
+│   │   ├── db/                    # Database client
+│   │   ├── app.ts                 # Express app setup
+│   │   └── index.ts               # Entry point
+│   └── package.json
+│
+├── frontend/
+│   ├── app/                       # Next.js App Router pages
+│   │   ├── dashboard/             # Dashboard page
+│   │   ├── bookings/              # Bookings list page
+│   │   ├── availability/          # Availability management
+│   │   ├── event-types/           # Event type management
+│   │   ├── settings/              # User settings
+│   │   ├── login/                 # Login page
+│   │   ├── [username]/[slug]/     # Public booking page
+│   │   ├── layout.tsx             # Root layout
+│   │   └── page.tsx               # Home page
+│   ├── components/
+│   │   ├── ui/                    # shadcn/ui components
+│   │   ├── app-shell.tsx          # Layout wrapper
+│   │   ├── navbar.tsx             # Navigation
+│   │   └── footer.tsx             # Footer
+│   ├── lib/
+│   │   ├── api.ts                 # API client
+│   │   ├── store.ts               # Zustand store
+│   │   ├── utils.ts               # Utility functions
+│   │   └── validations.ts         # Zod schemas
+│   └── package.json
+│
+└── README.md
+```
+
+---
+
+## 🗄️ Caching Strategy
+
+The application uses **Upstash Redis** for caching with an in-memory fallback for local development.
+
+### Cache Keys
+
+| Key Pattern                        | TTL  | Description         |
+| ---------------------------------- | ---- | ------------------- |
+| `booking:{id}`                     | 120s | Single booking data |
+| `bookings:user:{userId}:{filters}` | 60s  | User's booking list |
+
+### Cache Invalidation
+
+- **Create Booking**: Invalidates user's booking list cache
+- **Cancel Booking**: Invalidates specific booking + user's list
+- **Reschedule Booking**: Invalidates specific booking + user's list
+
+### Fallback Behavior
+
+If Redis is unavailable or not configured, the system automatically falls back to an in-memory Map store, ensuring the application continues to function.
+
+---
+
+## 🔒 Security Features
+
+- **User Isolation**: Users can only see their own bookings, schedules, and event types
+- **Booking Ownership**: Only the booker can cancel/reschedule their booking
+- **Double-booking Prevention**: Server-side validation prevents overlapping bookings
+- **Input Validation**: All inputs validated with Zod on both frontend and backend
+- **CORS Configuration**: Controlled cross-origin access
+
+---
+
+## 📱 Responsive Design
+
+The application is fully responsive with three breakpoints:
+
+| Breakpoint  | Width      | Layout                                    |
+| ----------- | ---------- | ----------------------------------------- |
+| **Mobile**  | &lt;768px  | Bottom navigation, mobile-optimized cards |
+| **Tablet**  | 768-1024px | Collapsed icon sidebar                    |
+| **Desktop** | &gt;1024px | Full sidebar with labels                  |
+
+---
+
+## 🧪 Testing the API
+
+```bash
+# Health check
+curl http://localhost:3001/api/health
+
+# Get event types
+curl http://localhost:3001/api/event-types
+
+# Get available slots for a specific date
+curl "http://localhost:3001/api/bookings/username/event-slug/slots?date=2026-01-20"
+
+# Create a booking
+curl -X POST http://localhost:3001/api/bookings/username/event-slug \
+  -H "Content-Type: application/json" \
+  -d '{
+    "bookerName": "John Doe",
+    "bookerEmail": "john@example.com",
+    "startTime": "2026-01-20T10:00:00Z",
+    "endTime": "2026-01-20T10:30:00Z",
+    "timeZone": "Asia/Calcutta"
+  }'
+```
+
+---
+
+## 🚀 Deployment
+
+### Backend (Railway / Render / Heroku)
+
+1. Set environment variables (DATABASE_URL, UPSTASH_REDIS_REST_URL, etc.)
+2. Build command: `npm run build`
+3. Start command: `npm start`
+
+### Frontend (Vercel)
+
+1. Connect your GitHub repository
+2. Set `NEXT_PUBLIC_API_URL` to your deployed backend URL
+3. Deploy automatically on push
+
+---
+
+## 📄 License
+
+MIT License
+
+---
+
+## 👨‍💻 Author
+
+Built as a demonstration of full-stack development with modern web technologies.

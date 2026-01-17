@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
@@ -18,6 +18,16 @@ import {
   LayoutGrid,
   ChevronDown,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface EventType {
   id: string;
@@ -36,6 +46,15 @@ interface TimeSlot {
   end: string;
 }
 
+interface OriginalBooking {
+  id: string;
+  startTime: string;
+  endTime: string;
+  bookerName: string;
+  bookerEmail: string;
+  notes?: string;
+}
+
 type BookingStep = "calendar" | "form" | "confirmation";
 
 export default function BookingPage() {
@@ -45,8 +64,11 @@ export default function BookingPage() {
   const username = params.username as string;
   const slug = params.slug as string;
 
-  // Get slot from URL if present
+  // Get query params for reschedule flow
   const slotParam = searchParams.get("slot");
+  const rescheduleUid = searchParams.get("rescheduleUid");
+  const rescheduledBy = searchParams.get("rescheduledBy");
+  const isRescheduleMode = !!rescheduleUid;
 
   const [eventType, setEventType] = useState<EventType | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -66,6 +88,11 @@ export default function BookingPage() {
     searchParams.get("overlayCalendar") === "true"
   );
   const [hostName, setHostName] = useState("");
+  const [originalBooking, setOriginalBooking] =
+    useState<OriginalBooking | null>(null);
+  const [rescheduleReason, setRescheduleReason] = useState("");
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false);
 
   const [formData, setFormData] = useState<{
     name: string;
@@ -81,8 +108,62 @@ export default function BookingPage() {
 
   const [showGuestInput, setShowGuestInput] = useState(false);
 
-  // Load current user for pre-filling form
+  // Build URL with current query params (helper function)
+  const buildUrl = useCallback(
+    (additionalParams: Record<string, string | null> = {}) => {
+      const baseUrl = `/${username}/${slug}`;
+      const params = new URLSearchParams();
+
+      // Preserve reschedule params
+      if (rescheduleUid) params.set("rescheduleUid", rescheduleUid);
+      if (rescheduledBy) params.set("rescheduledBy", rescheduledBy);
+      if (overlayCalendar) params.set("overlayCalendar", "true");
+
+      // Add/remove additional params
+      Object.entries(additionalParams).forEach(([key, value]) => {
+        if (value === null) {
+          params.delete(key);
+        } else {
+          params.set(key, value);
+        }
+      });
+
+      const queryString = params.toString();
+      return queryString ? `${baseUrl}?${queryString}` : baseUrl;
+    },
+    [username, slug, rescheduleUid, rescheduledBy, overlayCalendar]
+  );
+
+  // Load original booking for reschedule mode
   useEffect(() => {
+    const loadOriginalBooking = async () => {
+      if (!rescheduleUid) return;
+
+      try {
+        const response = await apiClient.get<OriginalBooking>(
+          `/bookings/${rescheduleUid}`
+        );
+        if (response.success && response.data) {
+          setOriginalBooking(response.data);
+          // Pre-fill form with original booking data
+          setFormData((prev) => ({
+            ...prev,
+            name: response.data.bookerName || prev.name,
+            email: response.data.bookerEmail || prev.email,
+          }));
+        }
+      } catch (error) {
+        console.error("Failed to load original booking:", error);
+      }
+    };
+
+    loadOriginalBooking();
+  }, [rescheduleUid]);
+
+  // Load current user for pre-filling form (only if not reschedule mode)
+  useEffect(() => {
+    if (isRescheduleMode) return; // Skip for reschedule - use booking data instead
+
     const loadCurrentUser = async () => {
       try {
         const response = await apiClient.get<any>("/users/profile");
@@ -98,7 +179,7 @@ export default function BookingPage() {
       }
     };
     loadCurrentUser();
-  }, []);
+  }, [isRescheduleMode]);
 
   // Parse slot from URL on mount
   useEffect(() => {
@@ -277,10 +358,8 @@ export default function BookingPage() {
 
   const handleSlotSelect = (slot: TimeSlot) => {
     setSelectedSlot(slot);
-    // Update URL with slot parameter
-    const newUrl = `/${username}/${slug}?overlayCalendar=${overlayCalendar}&slot=${encodeURIComponent(
-      slot.start
-    )}`;
+    // Update URL with slot parameter while preserving other params
+    const newUrl = buildUrl({ slot: slot.start });
     window.history.pushState({}, "", newUrl);
     setStep("form");
   };
@@ -289,10 +368,8 @@ export default function BookingPage() {
     if (step === "form") {
       setStep("calendar");
       setSelectedSlot(null);
-      // Remove slot from URL
-      const newUrl = `/${username}/${slug}${
-        overlayCalendar ? "?overlayCalendar=true" : ""
-      }`;
+      // Remove slot from URL while preserving reschedule params
+      const newUrl = buildUrl({ slot: null });
       window.history.pushState({}, "", newUrl);
     }
   };
@@ -307,10 +384,17 @@ export default function BookingPage() {
       return;
     }
 
+    // For reschedule, show confirmation dialog instead of submitting directly
+    if (isRescheduleMode && rescheduleUid) {
+      setRescheduleDialogOpen(true);
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
       const response = await apiClient.post(`/bookings/${username}/${slug}`, {
+        eventTypeId: eventType.id,
         eventTypeSlug: slug,
         bookerName: formData.name,
         bookerEmail: formData.email,
@@ -318,13 +402,15 @@ export default function BookingPage() {
         endTime: selectedSlot.end,
         timeZone: timezone,
         notes: formData.notes || undefined,
+        guests: formData.guests.filter((g) => g.trim() !== ""),
       });
 
       if (response.success) {
         setBookingData({
+          bookingId: response.data?.id,
           eventTitle: eventType.title,
           hostName: hostName,
-          hostEmail: eventType.user?.email, // Ensure this is captured
+          hostEmail: eventType.user?.email,
           guestName: formData.name,
           guestEmail: formData.email,
           guests: formData.guests,
@@ -343,6 +429,90 @@ export default function BookingPage() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleCancelBooking = () => {
+    if (!bookingData?.bookingId) return;
+    setCancelDialogOpen(true);
+  };
+
+  const confirmReschedule = async () => {
+    if (!selectedSlot || !selectedDate || !eventType || !rescheduleUid) return;
+
+    setRescheduleDialogOpen(false);
+    setIsSubmitting(true);
+
+    try {
+      const response = await apiClient.put(
+        `/bookings/${rescheduleUid}/reschedule`,
+        {
+          bookerEmail: formData.email,
+          startTime: selectedSlot.start,
+          endTime: selectedSlot.end,
+          rescheduleReason: rescheduleReason || undefined,
+        }
+      );
+
+      if (response.success) {
+        setBookingData({
+          eventTitle: eventType.title,
+          hostName: hostName,
+          hostEmail: eventType.user?.email,
+          guestName: formData.name,
+          guestEmail: formData.email,
+          guests: formData.guests,
+          date: selectedDate,
+          startTime: selectedSlot.start,
+          endTime: selectedSlot.end,
+          duration: eventType.duration,
+          isRescheduled: true,
+        });
+        setStep("confirmation");
+        toast.success("Booking rescheduled!");
+      } else {
+        toast.error(response.error?.message || "Failed to reschedule booking");
+      }
+    } catch (error: any) {
+      toast.error(error.message || "An error occurred");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const confirmCancelBooking = async () => {
+    if (!bookingData?.bookingId) return;
+
+    setCancelDialogOpen(false);
+
+    try {
+      const response = await apiClient.put(
+        `/bookings/${bookingData.bookingId}/cancel`,
+        {
+          bookerEmail: bookingData.guestEmail,
+        }
+      );
+
+      if (response.success) {
+        toast.success("Booking cancelled successfully");
+        router.push("/bookings");
+      } else {
+        toast.error(response.error?.message || "Failed to cancel booking");
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Failed to cancel booking");
+    }
+  };
+
+  const handleRescheduleBooking = () => {
+    if (!bookingData?.bookingId) return;
+
+    // Redirect to booking page with reschedule params including overlayCalendar
+    const rescheduleUrl = `/${username}/${slug}?rescheduleUid=${
+      bookingData.bookingId
+    }&rescheduledBy=${encodeURIComponent(
+      bookingData.guestEmail
+    )}&overlayCalendar=true`;
+    router.push(rescheduleUrl);
   };
 
   if (!eventType) {
@@ -378,7 +548,9 @@ export default function BookingPage() {
             </div>
 
             <h1 className="text-2xl font-semibold text-gray-900 text-center mb-2">
-              This meeting is scheduled
+              {bookingData.isRescheduled
+                ? "This meeting has been rescheduled"
+                : "This meeting is scheduled"}
             </h1>
             <p className="text-gray-500 text-center mb-8">
               We sent an email with a calendar invitation with the details to
@@ -386,9 +558,24 @@ export default function BookingPage() {
             </p>
 
             <div className="border-t border-gray-200 pt-6 space-y-4">
+              {/* Rescheduled by - Only show if rescheduled */}
+              {bookingData.isRescheduled && (
+                <div className="flex gap-4">
+                  <span className="text-gray-500 w-24 flex-shrink-0">
+                    Rescheduled by
+                  </span>
+                  <div className="text-gray-900">
+                    <p>{bookingData.guestEmail}</p>
+                    <button className="text-sm text-blue-600 hover:underline mt-1">
+                      Original booking
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* What */}
               <div className="flex gap-4">
-                <span className="text-gray-500 w-16 flex-shrink-0">What</span>
+                <span className="text-gray-500 w-24 flex-shrink-0">What</span>
                 <span className="text-gray-900">
                   {bookingData.eventTitle} between {bookingData.hostName} and{" "}
                   {bookingData.guestName}
@@ -397,7 +584,7 @@ export default function BookingPage() {
 
               {/* When */}
               <div className="flex gap-4">
-                <span className="text-gray-500 w-16 flex-shrink-0">When</span>
+                <span className="text-gray-500 w-24 flex-shrink-0">When</span>
                 <div className="text-gray-900">
                   <p>{formatSelectedDate()}</p>
                   <p>
@@ -409,7 +596,7 @@ export default function BookingPage() {
 
               {/* Who */}
               <div className="flex gap-4">
-                <span className="text-gray-500 w-16 flex-shrink-0">Who</span>
+                <span className="text-gray-500 w-24 flex-shrink-0">Who</span>
                 <div className="text-gray-900">
                   <div className="mb-4">
                     <p className="font-medium">
@@ -445,7 +632,7 @@ export default function BookingPage() {
 
               {/* Where */}
               <div className="flex gap-4">
-                <span className="text-gray-500 w-16 flex-shrink-0">Where</span>
+                <span className="text-gray-500 w-24 flex-shrink-0">Where</span>
                 <a
                   href="#"
                   className="text-gray-900 flex items-center gap-1 hover:underline"
@@ -459,11 +646,17 @@ export default function BookingPage() {
             <div className="border-t border-gray-200 mt-6 pt-6 text-center">
               <p className="text-sm text-gray-500">
                 Need to make a change?{" "}
-                <button className="text-blue-600 hover:underline">
+                <button
+                  onClick={handleRescheduleBooking}
+                  className="text-blue-600 hover:underline font-medium"
+                >
                   Reschedule
                 </button>
                 {" or "}
-                <button className="text-blue-600 hover:underline">
+                <button
+                  onClick={handleCancelBooking}
+                  className="text-red-600 hover:underline font-medium"
+                >
                   Cancel
                 </button>
               </p>
@@ -481,44 +674,6 @@ export default function BookingPage() {
 
   return (
     <div className="min-h-screen bg-[#f3f4f6]">
-      {/* Top Header */}
-      <div className="flex items-center justify-end p-4 gap-3">
-        {/* Overlay Calendar Toggle */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => {
-              const newValue = !overlayCalendar;
-              setOverlayCalendar(newValue);
-              const newUrl = `/${username}/${slug}?overlayCalendar=${newValue}`;
-              window.history.pushState({}, "", newUrl);
-            }}
-            className={`relative w-10 h-5 rounded-full transition-colors ${
-              overlayCalendar ? "bg-gray-900" : "bg-gray-300"
-            }`}
-          >
-            <span
-              className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-                overlayCalendar ? "left-5" : "left-0.5"
-              }`}
-            />
-          </button>
-          <span className="text-sm text-gray-600">Overlay my calendar</span>
-        </div>
-
-        {/* View Options */}
-        <div className="flex items-center border border-gray-200 rounded-md bg-white">
-          <button className="p-2 hover:bg-gray-50 border-r border-gray-200">
-            <Calendar className="w-4 h-4 text-gray-500" />
-          </button>
-          <button className="p-2 hover:bg-gray-50 border-r border-gray-200">
-            <Grid3X3 className="w-4 h-4 text-gray-500" />
-          </button>
-          <button className="p-2 hover:bg-gray-50">
-            <LayoutGrid className="w-4 h-4 text-gray-500" />
-          </button>
-        </div>
-      </div>
-
       {/* Main Content */}
       <div className="flex items-center justify-center px-4 pb-8">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 max-w-4xl w-full">
@@ -535,7 +690,31 @@ export default function BookingPage() {
                 {eventType.title}
               </h1>
 
-              {/* Event Details - Show date/time in form step */}
+              {/* Former time - Only show in reschedule mode */}
+              {isRescheduleMode && originalBooking && (
+                <div className="flex items-start gap-2 text-gray-700 mb-3">
+                  <Calendar className="w-4 h-4 text-gray-400 mt-0.5" />
+                  <div className="text-sm">
+                    <p className="text-gray-500 font-medium">Former time</p>
+                    <p className="line-through text-gray-500">
+                      {new Date(originalBooking.startTime).toLocaleDateString(
+                        "en-US",
+                        {
+                          weekday: "long",
+                          month: "long",
+                          day: "numeric",
+                          year: "numeric",
+                        }
+                      )}
+                    </p>
+                    <p className="line-through text-gray-500">
+                      {formatTimeShort(originalBooking.startTime)}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* New time - Show date/time in form step */}
               {step === "form" && selectedDate && selectedSlot && (
                 <div className="flex items-center gap-2 text-gray-700 mb-3">
                   <Calendar className="w-4 h-4 text-gray-400" />
@@ -807,7 +986,10 @@ export default function BookingPage() {
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Your name <span className="text-red-500">*</span>
+                      Your name{" "}
+                      {!isRescheduleMode && (
+                        <span className="text-red-500">*</span>
+                      )}
                     </label>
                     <input
                       type="text"
@@ -815,14 +997,18 @@ export default function BookingPage() {
                       onChange={(e) =>
                         setFormData({ ...formData, name: e.target.value })
                       }
-                      className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-                      required
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-gray-50"
+                      required={!isRescheduleMode}
+                      readOnly={isRescheduleMode}
                     />
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Email address <span className="text-red-500">*</span>
+                      Email address{" "}
+                      {!isRescheduleMode && (
+                        <span className="text-red-500">*</span>
+                      )}
                     </label>
                     <input
                       type="email"
@@ -830,95 +1016,115 @@ export default function BookingPage() {
                       onChange={(e) =>
                         setFormData({ ...formData, email: e.target.value })
                       }
-                      className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-                      required
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-gray-50"
+                      required={!isRescheduleMode}
+                      readOnly={isRescheduleMode}
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Additional notes
-                    </label>
-                    <textarea
-                      value={formData.notes}
-                      onChange={(e) =>
-                        setFormData({ ...formData, notes: e.target.value })
-                      }
-                      placeholder="Please share anything that will help prepare for our meeting."
-                      rows={4}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 resize-y"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Add guests
-                    </label>
-                    <div className="space-y-2">
-                      {showGuestInput ? (
-                        <>
-                          {formData.guests.map((guest, idx) => (
-                            <div key={idx} className="flex gap-2">
-                              <input
-                                type="email"
-                                value={guest}
-                                onChange={(e) => {
-                                  const newGuests = [...formData.guests];
-                                  newGuests[idx] = e.target.value;
-                                  setFormData({
-                                    ...formData,
-                                    guests: newGuests,
-                                  });
-                                }}
-                                placeholder="Email"
-                                className="flex-1 px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const newGuests = formData.guests.filter(
-                                    (_, i) => i !== idx
-                                  );
-                                  setFormData({
-                                    ...formData,
-                                    guests: newGuests,
-                                  });
-                                }}
-                                className="p-2 text-gray-400 hover:text-gray-600"
-                              >
-                                &times;
-                              </button>
-                            </div>
-                          ))}
+                  {/* Add guests - only for new bookings */}
+                  {!isRescheduleMode && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Add guests
+                      </label>
+                      <div className="space-y-2">
+                        {showGuestInput ? (
+                          <>
+                            {formData.guests.map((guest, idx) => (
+                              <div key={idx} className="flex gap-2">
+                                <input
+                                  type="email"
+                                  value={guest}
+                                  onChange={(e) => {
+                                    const newGuests = [...formData.guests];
+                                    newGuests[idx] = e.target.value;
+                                    setFormData({
+                                      ...formData,
+                                      guests: newGuests,
+                                    });
+                                  }}
+                                  placeholder="Email"
+                                  className="flex-1 px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const newGuests = formData.guests.filter(
+                                      (_, i) => i !== idx
+                                    );
+                                    setFormData({
+                                      ...formData,
+                                      guests: newGuests,
+                                    });
+                                  }}
+                                  className="p-2 text-gray-400 hover:text-gray-600"
+                                >
+                                  &times;
+                                </button>
+                              </div>
+                            ))}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setFormData({
+                                  ...formData,
+                                  guests: [...formData.guests, ""],
+                                })
+                              }
+                              className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"
+                            >
+                              <Users className="w-4 h-4" />
+                              Add another
+                            </button>
+                          </>
+                        ) : (
                           <button
                             type="button"
-                            onClick={() =>
-                              setFormData({
-                                ...formData,
-                                guests: [...formData.guests, ""],
-                              })
-                            }
-                            className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"
+                            onClick={() => {
+                              setShowGuestInput(true);
+                              setFormData({ ...formData, guests: [""] });
+                            }}
+                            className="flex items-center gap-2 text-sm text-gray-700 hover:text-gray-900"
                           >
                             <Users className="w-4 h-4" />
-                            Add another
+                            Add guests
                           </button>
-                        </>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setShowGuestInput(true);
-                            setFormData({ ...formData, guests: [""] });
-                          }}
-                          className="flex items-center gap-2 text-sm text-gray-700 hover:text-gray-900"
-                        >
-                          <Users className="w-4 h-4" />
-                          Add guests
-                        </button>
-                      )}
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  )}
+
+                  {/* Reason for reschedule - only in reschedule mode */}
+                  {isRescheduleMode ? (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Reason for reschedule
+                      </label>
+                      <textarea
+                        value={rescheduleReason}
+                        onChange={(e) => setRescheduleReason(e.target.value)}
+                        placeholder="Let others know why you need to reschedule"
+                        rows={4}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 resize-y"
+                      />
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Additional notes
+                      </label>
+                      <textarea
+                        value={formData.notes}
+                        onChange={(e) =>
+                          setFormData({ ...formData, notes: e.target.value })
+                        }
+                        placeholder="Please share anything that will help prepare for our meeting."
+                        rows={4}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 resize-y"
+                      />
+                    </div>
+                  )}
 
                   <p className="text-xs text-gray-500">
                     By proceeding, you agree to our{" "}
@@ -945,7 +1151,13 @@ export default function BookingPage() {
                       disabled={isSubmitting}
                       className="px-4 py-2 text-sm font-medium text-white bg-gray-900 hover:bg-gray-800 rounded-md disabled:opacity-50"
                     >
-                      {isSubmitting ? "Confirming..." : "Confirm"}
+                      {isSubmitting
+                        ? isRescheduleMode
+                          ? "Rescheduling..."
+                          : "Confirming..."
+                        : isRescheduleMode
+                        ? "Reschedule"
+                        : "Confirm"}
                     </button>
                   </div>
                 </form>
@@ -959,6 +1171,55 @@ export default function BookingPage() {
       <div className="text-center py-8">
         <span className="text-xl font-bold text-gray-900">Cal.com</span>
       </div>
+
+      {/* Cancel Booking Confirmation Dialog */}
+      <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel Booking</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to cancel this booking? This action cannot
+              be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep Booking</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmCancelBooking}
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+            >
+              Yes, Cancel Booking
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Reschedule Confirmation Dialog */}
+      <AlertDialog
+        open={rescheduleDialogOpen}
+        onOpenChange={setRescheduleDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Reschedule</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to reschedule this booking to the new time
+              slot? All participants will be notified of the change.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isSubmitting}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmReschedule}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Rescheduling..." : "Yes, Reschedule"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

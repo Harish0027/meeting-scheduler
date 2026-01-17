@@ -14,6 +14,8 @@ model User {
   id        String     @id @default(cuid())
   username  String     @unique
   email     String     @unique
+  name      String?
+  bio       String?
   timezone  String     @default("UTC")
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
@@ -21,28 +23,36 @@ model User {
   eventTypes     EventType[]
   availabilities Availability[]
   bookings       Booking[]
+  schedules      Schedule[]
 
   @@index([username])
   @@index([email])
 }
 
 model EventType {
-  id          String     @id @default(cuid())
-  userId      String
-  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  title       String
-  description String?
-  duration    Int        // in minutes
-  slug        String     // unique per user
-  isActive    Boolean    @default(true)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  id                  String     @id @default(cuid())
+  userId              String
+  user                User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title               String
+  description         String?
+  duration            Int        // in minutes
+  slug                String     // unique per user
+  scheduleId          String?    // References Schedule (Availability)
+  schedule            Schedule?  @relation(fields: [scheduleId], references: [id], onDelete: Restrict)
+  location            String     @default("meet") // meet, in-person, phone
+  locationValue       String?    // Address for in-person, phone number for phone
+  bufferTime          Int        @default(0) // in minutes
+  maxBookingsPerDay   Int?       // optional limit
+  isActive            Boolean    @default(true)
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
 
   bookings Booking[]
 
   @@unique([userId, slug])
   @@index([userId])
   @@index([slug])
+  @@index([scheduleId])
 }
 
 model Availability {
@@ -59,8 +69,38 @@ model Availability {
   @@index([userId])
 }
 
+model Schedule {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  timezone    String   @default("UTC")
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  slots      ScheduleSlot[]
+  eventTypes EventType[]
+
+  @@index([userId])
+}
+
+model ScheduleSlot {
+  id         String   @id @default(cuid())
+  scheduleId String
+  schedule   Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  dayOfWeek  Int      // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+  startTime  String   // HH:MM format
+  endTime    String   // HH:MM format
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([scheduleId])
+}
+
 model Booking {
   id            String   @id @default(cuid())
+  uid           String?  @unique @default(cuid()) // Public booking UID for search
   eventTypeId   String
   eventType     EventType @relation(fields: [eventTypeId], references: [id], onDelete: Cascade)
   userId        String
@@ -71,6 +111,9 @@ model Booking {
   startTime     DateTime
   endTime       DateTime
   timeZone      String?    // The timezone of the booker at time of booking
+  location      String     @default("meet") // meet, in-person, phone
+  locationValue String?    // Address for in-person, phone number for phone
+  guests        String[]   // Array of guest emails
   notes         String?
   status        String   @default("confirmed") // confirmed, cancelled
   createdAt     DateTime @default(now())
@@ -80,4 +123,5 @@ model Booking {
   @@index([eventTypeId])
   @@index([startTime])
   @@index([bookerEmail])
+  @@index([uid])
 }
