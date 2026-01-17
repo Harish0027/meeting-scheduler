@@ -64,7 +64,13 @@ export default function ProfilePage() {
         toast.success("Profile updated successfully");
         loadProfile();
       } else {
-        toast.error(response.error || "Failed to update profile");
+        let errorMsg = "Failed to update profile";
+        if (typeof response.error === "string") {
+          errorMsg = response.error;
+        } else if (response.error && typeof response.error === "object" && "message" in response.error) {
+          errorMsg = response.error.message;
+        }
+        toast.error(errorMsg);
       }
     } catch (error) {
       toast.error("Failed to update profile");

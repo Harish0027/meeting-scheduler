@@ -14,7 +14,12 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-export function Navbar() {
+// Default export required by Next.js App Router
+export default function SuccessPage() {
+  return <Navbar />;
+}
+
+function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
 

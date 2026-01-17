@@ -1,11 +1,11 @@
 "use client";
-
 import React, {
   useEffect,
   useState,
   useMemo,
   useRef,
   useCallback,
+  Suspense,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { apiClient } from "@/lib/api";
@@ -75,7 +75,13 @@ interface Booking {
     email: string;
   };
 }
-
+export default function BookingsPage() {
+  return (
+    <Suspense>
+      <BookingsPageContent />
+    </Suspense>
+  );
+}
 interface EventType {
   id: string;
   title: string;
@@ -208,7 +214,7 @@ const saveSavedFiltersToStorage = (filters: SavedFilter[]): void => {
 // Track which filters are actively shown in the UI
 type ActiveFilterKeys = Set<FilterKey>;
 
-export default function BookingsPage() {
+function BookingsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, initFromCookie } = useAuthStore();

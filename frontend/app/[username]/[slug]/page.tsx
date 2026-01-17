@@ -83,7 +83,21 @@ export default function BookingPage() {
     Intl.DateTimeFormat().resolvedOptions().timeZone
   );
   const [showTimezoneSelect, setShowTimezoneSelect] = useState(false);
-  const [bookingData, setBookingData] = useState<any>(null);
+  interface BookingData {
+    bookingId: string | undefined;
+    eventTitle: string;
+    hostName: string;
+    hostEmail: string | undefined;
+    guestName: string;
+    guestEmail: string;
+    guests: string[];
+    date: Date | null;
+    startTime: string;
+    endTime: string;
+    duration: number;
+    isRescheduled?: boolean;
+  }
+  const [bookingData, setBookingData] = useState<BookingData | null>(null);
   const [overlayCalendar, setOverlayCalendar] = useState(
     searchParams.get("overlayCalendar") === "true"
   );
@@ -143,13 +157,13 @@ export default function BookingPage() {
         const response = await apiClient.get<OriginalBooking>(
           `/bookings/${rescheduleUid}`
         );
-        if (response.success && response.data) {
+        if (response?.success && response?.data) {
           setOriginalBooking(response.data);
           // Pre-fill form with original booking data
           setFormData((prev) => ({
             ...prev,
-            name: response.data.bookerName || prev.name,
-            email: response.data.bookerEmail || prev.email,
+            name: response.data?.bookerName ?? prev.name,
+            email: response.data?.bookerEmail ?? prev.email,
           }));
         }
       } catch (error) {
@@ -407,7 +421,9 @@ export default function BookingPage() {
 
       if (response.success) {
         setBookingData({
-          bookingId: response.data?.id,
+          bookingId: (response.data && typeof response.data === 'object' && 'id' in response.data)
+            ? (response.data as { id?: string }).id
+            : undefined,
           eventTitle: eventType.title,
           hostName: hostName,
           hostEmail: eventType.user?.email,
@@ -455,6 +471,7 @@ export default function BookingPage() {
 
       if (response.success) {
         setBookingData({
+          bookingId: originalBooking?.id ?? undefined,
           eventTitle: eventType.title,
           hostName: hostName,
           hostEmail: eventType.user?.email,
