@@ -11,7 +11,15 @@ export const createApp = (): Express => {
   const app = express();
 
   // Middleware
-  app.use(cors());
+
+  app.use(
+    cors({
+      origin: process.env.FRONTEND_BASE_URL,
+      methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+      credentials: true,
+    })
+  );
+
   app.use(express.json());
 
   // Routes
