@@ -17,18 +17,15 @@ export default function LoginPage() {
     try {
       // Create or get user - simplified auth without password
       const username = email.split("@")[0];
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/users`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email,
-            username,
-            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
-          }),
-        }
-      );
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          username,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+        }),
+      });
 
       if (!response.ok) {
         const errorData = await response.json();
