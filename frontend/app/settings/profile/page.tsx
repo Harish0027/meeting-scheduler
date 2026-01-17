@@ -67,7 +67,11 @@ export default function ProfilePage() {
         let errorMsg = "Failed to update profile";
         if (typeof response.error === "string") {
           errorMsg = response.error;
-        } else if (response.error && typeof response.error === "object" && "message" in response.error) {
+        } else if (
+          response.error &&
+          typeof response.error === "object" &&
+          "message" in response.error
+        ) {
           errorMsg = response.error.message;
         }
         toast.error(errorMsg);

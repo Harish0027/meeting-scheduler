@@ -421,9 +421,12 @@ export default function BookingPage() {
 
       if (response.success) {
         setBookingData({
-          bookingId: (response.data && typeof response.data === 'object' && 'id' in response.data)
-            ? (response.data as { id?: string }).id
-            : undefined,
+          bookingId:
+            response.data &&
+            typeof response.data === "object" &&
+            "id" in response.data
+              ? (response.data as { id?: string }).id
+              : undefined,
           eventTitle: eventType.title,
           hostName: hostName,
           hostEmail: eventType.user?.email,
