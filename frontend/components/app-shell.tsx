@@ -269,7 +269,7 @@ export function AppShell({ children }: AppShellProps) {
       </aside>
 
       {/* ================= Desktop Sidebar ================= */}
-      <aside className="hidden lg:flex w-[250px] border-r bg-gray-50 flex-col">
+      <aside className="hidden lg:flex w-62.5 border-r bg-gray-50 flex-col">
         <div className="p-4 relative" ref={userMenuRef}>
           <button
             onClick={() => setUserMenuOpen(!userMenuOpen)}
